@@ -172,6 +172,17 @@ class Parser:
         if self.match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self.previous().literal)
         
+        # Handle parenthesized expressions
+        if self.match(TokenType.LEFT_PAREN):
+            # Parse the expression inside the parentheses
+            expr = self.expression()
+            
+            # Expect a closing parenthesis
+            self.consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
+            
+            # Return the expression wrapped in a Grouping node
+            return Grouping(expr)
+        
         raise Exception("Expect expression.")
     
     def match(self, *types):
