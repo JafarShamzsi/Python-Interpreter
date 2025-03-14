@@ -60,6 +60,160 @@ class Token:
     def __str__(self):
         return f"{self.token_type.value} {self.lexeme} {self.literal if self.literal is not None else 'null'}"
 
+# AST classes for expressions
+class Expr:
+    """Base class for all expressions."""
+    pass
+
+class Binary(Expr):
+    """Binary expression with two operands and an operator."""
+    def __init__(self, left, operator, right):
+        self.left = left
+        self.operator = operator
+        self.right = right
+    
+    def accept(self, visitor):
+        return visitor.visit_binary_expr(self)
+
+class Grouping(Expr):
+    """Expression inside parentheses."""
+    def __init__(self, expression):
+        self.expression = expression
+    
+    def accept(self, visitor):
+        return visitor.visit_grouping_expr(self)
+
+class Literal(Expr):
+    """Literal value (number, string, true, false, nil)."""
+    def __init__(self, value):
+        self.value = value
+    
+    def accept(self, visitor):
+        return visitor.visit_literal_expr(self)
+
+class Unary(Expr):
+    """Unary expression with one operand and an operator."""
+    def __init__(self, operator, right):
+        self.operator = operator
+        self.right = right
+    
+    def accept(self, visitor):
+        return visitor.visit_unary_expr(self)
+
+# AST Printer for generating the output format
+class AstPrinter:
+    """Prints an AST in a lisp-like format."""
+    
+    def print(self, expr):
+        return expr.accept(self)
+    
+    def visit_binary_expr(self, expr):
+        return self.parenthesize(expr.operator.lexeme, expr.left, expr.right)
+    
+    def visit_grouping_expr(self, expr):
+        return self.parenthesize("group", expr.expression)
+    
+    def visit_literal_expr(self, expr):
+        if expr.value is None:
+            return "nil"
+        if expr.value is True:
+            return "true"
+        if expr.value is False:
+            return "false"
+        return str(expr.value)
+    
+    def visit_unary_expr(self, expr):
+        return self.parenthesize(expr.operator.lexeme, expr.right)
+    
+    def parenthesize(self, name, *exprs):
+        builder = []
+        builder.append("(")
+        builder.append(name)
+        
+        for expr in exprs:
+            builder.append(" ")
+            builder.append(expr.accept(self))
+        
+        builder.append(")")
+        
+        return "".join(builder)
+
+# Parser for building the AST
+class Parser:
+    """Parses tokens into an AST."""
+    
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.current = 0
+        self.had_error = False
+    
+    def parse(self):
+        """Parse tokens into an expression."""
+        try:
+            return self.expression()
+        except Exception as error:
+            self.had_error = True
+            print(f"Error: {error}", file=sys.stderr)
+            return None
+    
+    def expression(self):
+        """Parse an expression."""
+        return self.primary()
+    
+    def primary(self):
+        """Parse a primary expression."""
+        if self.match(TokenType.FALSE):
+            return Literal(False)
+        if self.match(TokenType.TRUE):
+            return Literal(True)
+        if self.match(TokenType.NIL):
+            return Literal(None)
+        
+        if self.match(TokenType.NUMBER, TokenType.STRING):
+            return Literal(self.previous().literal)
+        
+        raise Exception("Expect expression.")
+    
+    def match(self, *types):
+        """Check if the current token matches any of the given types."""
+        for token_type in types:
+            if self.check(token_type):
+                self.advance()
+                return True
+        
+        return False
+    
+    def check(self, token_type):
+        """Check if the current token is of the given type."""
+        if self.is_at_end():
+            return False
+        return self.peek().token_type == token_type
+    
+    def advance(self):
+        """Advance to the next token."""
+        if not self.is_at_end():
+            self.current += 1
+        return self.previous()
+    
+    def is_at_end(self):
+        """Check if we've reached the end of the tokens."""
+        return self.peek().token_type == TokenType.EOF
+    
+    def peek(self):
+        """Get the current token."""
+        return self.tokens[self.current]
+    
+    def previous(self):
+        """Get the previous token."""
+        return self.tokens[self.current - 1]
+    
+    def consume(self, token_type, message):
+        """Consume the current token if it's of the given type."""
+        if self.check(token_type):
+            return self.advance()
+        
+        raise Exception(message)
+
 class Scanner:
     def __init__(self, source):
         self.source = source
@@ -279,13 +433,13 @@ class Scanner:
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: ./your_program.sh tokenize <filename>", file=sys.stderr)
+        print("Usage: ./your_program.sh [tokenize|parse] <filename>", file=sys.stderr)
         exit(1)
 
     command = sys.argv[1]
     filename = sys.argv[2]
 
-    if command != "tokenize":
+    if command not in ["tokenize", "parse"]:
         print(f"Unknown command: {command}", file=sys.stderr)
         exit(1)
 
@@ -299,12 +453,28 @@ def main():
     scanner = Scanner(file_contents)
     tokens = scanner.scan_tokens()
     
-    # Print tokens in the required format
-    for token in tokens:
-        print(token)
+    # Handle different commands
+    if command == "tokenize":
+        # Print tokens in the required format
+        for token in tokens:
+            print(token)
+    elif command == "parse":
+        # Parse the tokens into an AST and print it
+        parser = Parser(tokens)
+        expression = parser.parse()
+        if expression:
+            printer = AstPrinter()
+            print(printer.print(expression))
+        else:
+            print("Error: Failed to parse expression.", file=sys.stderr)
+            exit(65)
     
     # Exit with code 65 if there were lexical errors
     if scanner.had_error:
+        exit(65)
+    
+    # Exit with code 65 if there were parsing errors
+    if command == "parse" and parser.had_error:
         exit(65)
 
 
