@@ -113,9 +113,11 @@ class Scanner:
                 self.add_token(TokenType.GREATER_EQUAL)
             else:
                 self.add_token(TokenType.GREATER)
-        # Ignore whitespace characters
+        # Handle whitespace characters
         elif c.isspace():
-            pass
+            # If newline, increment line counter
+            if c == '\n':
+                self.line += 1
         else:
             # Report error for unexpected characters
             self.error(c)
