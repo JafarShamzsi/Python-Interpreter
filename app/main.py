@@ -7,12 +7,16 @@ class TokenType(Enum):
     RIGHT_PAREN = "RIGHT_PAREN"
     LEFT_BRACE = "LEFT_BRACE"
     RIGHT_BRACE = "RIGHT_BRACE"
-    COMMA = "COMMA"        # New token type for ','
-    DOT = "DOT"            # New token type for '.'
-    MINUS = "MINUS"        # New token type for '-'
-    PLUS = "PLUS"          # New token type for '+'
-    SEMICOLON = "SEMICOLON"  # New token type for ';'
-    STAR = "STAR"          # New token type for '*'
+    COMMA = "COMMA"
+    DOT = "DOT"
+    MINUS = "MINUS"
+    PLUS = "PLUS"
+    SEMICOLON = "SEMICOLON"
+    STAR = "STAR"
+    
+    # One or two character tokens
+    EQUAL = "EQUAL"
+    EQUAL_EQUAL = "EQUAL_EQUAL"
     
     # End of file
     EOF = "EOF"
@@ -69,12 +73,28 @@ class Scanner:
             self.add_token(TokenType.SEMICOLON)
         elif c == '*':
             self.add_token(TokenType.STAR)
+        elif c == '=':
+            # Check if it's '==' (equality) or just '=' (assignment)
+            if self.match('='):
+                self.add_token(TokenType.EQUAL_EQUAL)
+            else:
+                self.add_token(TokenType.EQUAL)
         # Ignore whitespace characters
         elif c.isspace():
             pass
         else:
             # Report error for unexpected characters
             self.error(c)
+    
+    def match(self, expected):
+        """Conditionally consume the next character if it matches expected."""
+        if self.is_at_end():
+            return False
+        if self.source[self.current] != expected:
+            return False
+        
+        self.current += 1
+        return True
     
     def error(self, character):
         """Report a lexical error."""
