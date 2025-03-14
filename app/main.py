@@ -30,6 +30,24 @@ class TokenType(Enum):
     NUMBER = "NUMBER"        # Token type for number literals
     IDENTIFIER = "IDENTIFIER"  # New token type for identifiers
     
+    # Reserved keywords
+    AND = "AND"
+    CLASS = "CLASS"
+    ELSE = "ELSE"
+    FALSE = "FALSE"
+    FOR = "FOR"
+    FUN = "FUN"
+    IF = "IF"
+    NIL = "NIL"
+    OR = "OR"
+    PRINT = "PRINT"
+    RETURN = "RETURN"
+    SUPER = "SUPER"
+    THIS = "THIS"
+    TRUE = "TRUE"
+    VAR = "VAR"
+    WHILE = "WHILE"
+    
     # End of file
     EOF = "EOF"
 
@@ -50,6 +68,26 @@ class Scanner:
         self.current = 0
         self.line = 1  # Track line number for error reporting
         self.had_error = False  # Track if any errors occurred
+        
+        # Reserved keywords mapping
+        self.keywords = {
+            "and": TokenType.AND,
+            "class": TokenType.CLASS,
+            "else": TokenType.ELSE,
+            "false": TokenType.FALSE,
+            "for": TokenType.FOR,
+            "fun": TokenType.FUN,
+            "if": TokenType.IF,
+            "nil": TokenType.NIL,
+            "or": TokenType.OR,
+            "print": TokenType.PRINT,
+            "return": TokenType.RETURN,
+            "super": TokenType.SUPER,
+            "this": TokenType.THIS,
+            "true": TokenType.TRUE,
+            "var": TokenType.VAR,
+            "while": TokenType.WHILE
+        }
     
     def scan_tokens(self):
         """Scan all tokens in the source."""
@@ -129,7 +167,7 @@ class Scanner:
             # If newline, increment line counter
             if c == '\n':
                 self.line += 1
-        # Identifiers
+        # Identifiers and keywords
         elif self.is_alpha(c):
             self.identifier()
         else:
@@ -137,12 +175,18 @@ class Scanner:
             self.error(c)
     
     def identifier(self):
-        """Process an identifier."""
+        """Process an identifier or keyword."""
         while not self.is_at_end() and self.is_alphanumeric(self.peek()):
             self.advance()
-            
-        # Add the identifier token
-        self.add_token(TokenType.IDENTIFIER)
+        
+        # Get the identifier text
+        text = self.source[self.start:self.current]
+        
+        # Check if it's a reserved keyword
+        token_type = self.keywords.get(text, TokenType.IDENTIFIER)
+        
+        # Add the token
+        self.add_token(token_type)
     
     def is_alpha(self, c):
         """Check if a character is a letter or underscore."""
