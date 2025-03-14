@@ -5,6 +5,8 @@ class TokenType(Enum):
     # Single-character tokens
     LEFT_PAREN = "LEFT_PAREN"
     RIGHT_PAREN = "RIGHT_PAREN"
+    LEFT_BRACE = "LEFT_BRACE"    # New token type for '{'
+    RIGHT_BRACE = "RIGHT_BRACE"  # New token type for '}'
     
     # End of file
     EOF = "EOF"
@@ -43,6 +45,10 @@ class Scanner:
             self.add_token(TokenType.LEFT_PAREN)
         elif c == ')':
             self.add_token(TokenType.RIGHT_PAREN)
+        elif c == '{':  # New condition for '{'
+            self.add_token(TokenType.LEFT_BRACE)
+        elif c == '}':  # New condition for '}'
+            self.add_token(TokenType.RIGHT_BRACE)
         # Ignore whitespace characters
         elif c.isspace():
             pass
