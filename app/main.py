@@ -25,6 +25,9 @@ class TokenType(Enum):
     GREATER = "GREATER"
     GREATER_EQUAL = "GREATER_EQUAL"
     
+    # Literals
+    STRING = "STRING"        # New token type for string literals
+    
     # End of file
     EOF = "EOF"
 
@@ -113,6 +116,9 @@ class Scanner:
                 self.add_token(TokenType.GREATER_EQUAL)
             else:
                 self.add_token(TokenType.GREATER)
+        # String literals
+        elif c == '"':
+            self.string()
         # Handle whitespace characters
         elif c.isspace():
             # If newline, increment line counter
@@ -121,6 +127,27 @@ class Scanner:
         else:
             # Report error for unexpected characters
             self.error(c)
+    
+    def string(self):
+        """Process a string literal."""
+        # Consume characters until closing quote or end of file
+        while not self.is_at_end() and self.peek() != '"':
+            if self.peek() == '\n':
+                self.line += 1
+            self.advance()
+        
+        # Check for unterminated string
+        if self.is_at_end():
+            print(f"[line {self.line}] Error: Unterminated string.", file=sys.stderr)
+            self.had_error = True
+            return
+            
+        # Consume the closing "
+        self.advance()
+        
+        # Extract the string value (without the surrounding quotes)
+        value = self.source[self.start + 1:self.current - 1]
+        self.add_token(TokenType.STRING, value)
     
     def match(self, expected):
         """Conditionally consume the next character if it matches expected."""
