@@ -32,6 +32,8 @@ class Scanner:
         self.tokens = []
         self.start = 0
         self.current = 0
+        self.line = 1  # Track line number for error reporting
+        self.had_error = False  # Track if any errors occurred
     
     def scan_tokens(self):
         """Scan all tokens in the source."""
@@ -71,9 +73,13 @@ class Scanner:
         elif c.isspace():
             pass
         else:
-            # For now, we'll ignore other characters
-            # In a complete implementation, we would handle other token types here
-            pass
+            # Report error for unexpected characters
+            self.error(c)
+    
+    def error(self, character):
+        """Report a lexical error."""
+        print(f"[line {self.line}] Error: Unexpected character: {character}", file=sys.stderr)
+        self.had_error = True
     
     def add_token(self, token_type, literal=None):
         """Add a token to the list."""
@@ -114,6 +120,10 @@ def main():
     # Print tokens in the required format
     for token in tokens:
         print(token)
+    
+    # Exit with code 65 if there were lexical errors
+    if scanner.had_error:
+        exit(65)
 
 
 if __name__ == "__main__":
