@@ -13,7 +13,7 @@ class TokenType(Enum):
     PLUS = "PLUS"
     SEMICOLON = "SEMICOLON"
     STAR = "STAR"
-    SLASH = "SLASH"          # New token type for '/'
+    SLASH = "SLASH"          # Token type for '/'
     
     # One or two character tokens
     BANG = "BANG"
@@ -26,7 +26,8 @@ class TokenType(Enum):
     GREATER_EQUAL = "GREATER_EQUAL"
     
     # Literals
-    STRING = "STRING"        # New token type for string literals
+    STRING = "STRING"        # Token type for string literals
+    NUMBER = "NUMBER"        # New token type for number literals
     
     # End of file
     EOF = "EOF"
@@ -119,6 +120,9 @@ class Scanner:
         # String literals
         elif c == '"':
             self.string()
+        # Number literals
+        elif c.isdigit():
+            self.number()
         # Handle whitespace characters
         elif c.isspace():
             # If newline, increment line counter
@@ -148,6 +152,31 @@ class Scanner:
         # Extract the string value (without the surrounding quotes)
         value = self.source[self.start + 1:self.current - 1]
         self.add_token(TokenType.STRING, value)
+    
+    def number(self):
+        """Process a number literal."""
+        # Consume digits
+        while not self.is_at_end() and self.peek().isdigit():
+            self.advance()
+            
+        # Look for a fractional part
+        if not self.is_at_end() and self.peek() == '.' and self.peek_next().isdigit():
+            # Consume the "."
+            self.advance()
+            
+            # Consume fractional digits
+            while not self.is_at_end() and self.peek().isdigit():
+                self.advance()
+        
+        # Convert to float and add token
+        value = float(self.source[self.start:self.current])
+        self.add_token(TokenType.NUMBER, value)
+    
+    def peek_next(self):
+        """Look at the character two positions ahead without consuming it."""
+        if self.current + 1 >= len(self.source):
+            return '\0'
+        return self.source[self.current + 1]
     
     def match(self, expected):
         """Conditionally consume the next character if it matches expected."""
