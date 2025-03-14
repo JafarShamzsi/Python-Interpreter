@@ -15,6 +15,8 @@ class TokenType(Enum):
     STAR = "STAR"
     
     # One or two character tokens
+    BANG = "BANG"             # New token type for '!'
+    BANG_EQUAL = "BANG_EQUAL"  # New token type for '!='
     EQUAL = "EQUAL"
     EQUAL_EQUAL = "EQUAL_EQUAL"
     
@@ -73,6 +75,12 @@ class Scanner:
             self.add_token(TokenType.SEMICOLON)
         elif c == '*':
             self.add_token(TokenType.STAR)
+        elif c == '!':
+            # Check if it's '!=' (inequality) or just '!' (negation)
+            if self.match('='):
+                self.add_token(TokenType.BANG_EQUAL)
+            else:
+                self.add_token(TokenType.BANG)
         elif c == '=':
             # Check if it's '==' (equality) or just '=' (assignment)
             if self.match('='):
