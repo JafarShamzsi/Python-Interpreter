@@ -13,16 +13,17 @@ class TokenType(Enum):
     PLUS = "PLUS"
     SEMICOLON = "SEMICOLON"
     STAR = "STAR"
+    SLASH = "SLASH"          # New token type for '/'
     
     # One or two character tokens
-    BANG = "BANG"             # New token type for '!'
-    BANG_EQUAL = "BANG_EQUAL"  # New token type for '!='
+    BANG = "BANG"
+    BANG_EQUAL = "BANG_EQUAL"
     EQUAL = "EQUAL"
     EQUAL_EQUAL = "EQUAL_EQUAL"
-    LESS = "LESS"             # New token type for '<'
-    LESS_EQUAL = "LESS_EQUAL"  # New token type for '<='
-    GREATER = "GREATER"       # New token type for '>'
-    GREATER_EQUAL = "GREATER_EQUAL"  # New token type for '>='
+    LESS = "LESS"
+    LESS_EQUAL = "LESS_EQUAL"
+    GREATER = "GREATER"
+    GREATER_EQUAL = "GREATER_EQUAL"
     
     # End of file
     EOF = "EOF"
@@ -79,6 +80,15 @@ class Scanner:
             self.add_token(TokenType.SEMICOLON)
         elif c == '*':
             self.add_token(TokenType.STAR)
+        elif c == '/':
+            # Check if it's a comment (//) or division operator (/)
+            if self.match('/'):
+                # Comment - consume characters until end of line
+                while not self.is_at_end() and self.peek() != '\n':
+                    self.advance()
+            else:
+                # Division operator
+                self.add_token(TokenType.SLASH)
         elif c == '!':
             # Check if it's '!=' (inequality) or just '!' (negation)
             if self.match('='):
@@ -119,6 +129,12 @@ class Scanner:
         
         self.current += 1
         return True
+    
+    def peek(self):
+        """Look at the current character without consuming it."""
+        if self.is_at_end():
+            return '\0'
+        return self.source[self.current]
     
     def error(self, character):
         """Report a lexical error."""
