@@ -19,6 +19,10 @@ class TokenType(Enum):
     BANG_EQUAL = "BANG_EQUAL"  # New token type for '!='
     EQUAL = "EQUAL"
     EQUAL_EQUAL = "EQUAL_EQUAL"
+    LESS = "LESS"             # New token type for '<'
+    LESS_EQUAL = "LESS_EQUAL"  # New token type for '<='
+    GREATER = "GREATER"       # New token type for '>'
+    GREATER_EQUAL = "GREATER_EQUAL"  # New token type for '>='
     
     # End of file
     EOF = "EOF"
@@ -87,6 +91,18 @@ class Scanner:
                 self.add_token(TokenType.EQUAL_EQUAL)
             else:
                 self.add_token(TokenType.EQUAL)
+        elif c == '<':
+            # Check if it's '<=' (less than or equal to) or just '<' (less than)
+            if self.match('='):
+                self.add_token(TokenType.LESS_EQUAL)
+            else:
+                self.add_token(TokenType.LESS)
+        elif c == '>':
+            # Check if it's '>=' (greater than or equal to) or just '>' (greater than)
+            if self.match('='):
+                self.add_token(TokenType.GREATER_EQUAL)
+            else:
+                self.add_token(TokenType.GREATER)
         # Ignore whitespace characters
         elif c.isspace():
             pass
