@@ -5,8 +5,14 @@ class TokenType(Enum):
     # Single-character tokens
     LEFT_PAREN = "LEFT_PAREN"
     RIGHT_PAREN = "RIGHT_PAREN"
-    LEFT_BRACE = "LEFT_BRACE"    # New token type for '{'
-    RIGHT_BRACE = "RIGHT_BRACE"  # New token type for '}'
+    LEFT_BRACE = "LEFT_BRACE"
+    RIGHT_BRACE = "RIGHT_BRACE"
+    COMMA = "COMMA"        # New token type for ','
+    DOT = "DOT"            # New token type for '.'
+    MINUS = "MINUS"        # New token type for '-'
+    PLUS = "PLUS"          # New token type for '+'
+    SEMICOLON = "SEMICOLON"  # New token type for ';'
+    STAR = "STAR"          # New token type for '*'
     
     # End of file
     EOF = "EOF"
@@ -45,10 +51,22 @@ class Scanner:
             self.add_token(TokenType.LEFT_PAREN)
         elif c == ')':
             self.add_token(TokenType.RIGHT_PAREN)
-        elif c == '{':  # New condition for '{'
+        elif c == '{':
             self.add_token(TokenType.LEFT_BRACE)
-        elif c == '}':  # New condition for '}'
+        elif c == '}':
             self.add_token(TokenType.RIGHT_BRACE)
+        elif c == ',':
+            self.add_token(TokenType.COMMA)
+        elif c == '.':
+            self.add_token(TokenType.DOT)
+        elif c == '-':
+            self.add_token(TokenType.MINUS)
+        elif c == '+':
+            self.add_token(TokenType.PLUS)
+        elif c == ';':
+            self.add_token(TokenType.SEMICOLON)
+        elif c == '*':
+            self.add_token(TokenType.STAR)
         # Ignore whitespace characters
         elif c.isspace():
             pass
