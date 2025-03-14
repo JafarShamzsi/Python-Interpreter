@@ -27,7 +27,8 @@ class TokenType(Enum):
     
     # Literals
     STRING = "STRING"        # Token type for string literals
-    NUMBER = "NUMBER"        # New token type for number literals
+    NUMBER = "NUMBER"        # Token type for number literals
+    IDENTIFIER = "IDENTIFIER"  # New token type for identifiers
     
     # End of file
     EOF = "EOF"
@@ -128,9 +129,28 @@ class Scanner:
             # If newline, increment line counter
             if c == '\n':
                 self.line += 1
+        # Identifiers
+        elif self.is_alpha(c):
+            self.identifier()
         else:
             # Report error for unexpected characters
             self.error(c)
+    
+    def identifier(self):
+        """Process an identifier."""
+        while not self.is_at_end() and self.is_alphanumeric(self.peek()):
+            self.advance()
+            
+        # Add the identifier token
+        self.add_token(TokenType.IDENTIFIER)
+    
+    def is_alpha(self, c):
+        """Check if a character is a letter or underscore."""
+        return c.isalpha() or c == '_'
+    
+    def is_alphanumeric(self, c):
+        """Check if a character is a letter, digit, or underscore."""
+        return self.is_alpha(c) or c.isdigit()
     
     def string(self):
         """Process a string literal."""
