@@ -808,7 +808,8 @@ def main():
         parser = Parser(tokens)
         try:
             expression = parser.expression()
-            parser.consume(TokenType.EOF, "Expect end of expression.")
+            # Don't check for EOF here - allow the expression to take up the entire input
+            # parser.consume(TokenType.EOF, "Expect end of expression.")
             if expression:
                 printer = AstPrinter()
                 print(printer.print(expression))
