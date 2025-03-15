@@ -1283,14 +1283,12 @@ class Interpreter:
         return None
 
     def visit_return_stmt(self, stmt):
-        """Execute a return statement."""
-        value = None
-        if stmt.value is not None:
-            value = self.evaluate(stmt.value)
+        if self.current_function == FunctionType.NONE:
+            self.error(stmt.keyword, "Can't return from top-level code.")
         
-        # Using an exception for control flow to return early from nested calls
-        raise ReturnException(value)
-    
+        if stmt.value:
+            self.resolve(stmt.value)
+
     def resolve(self, expr, depth):
         """Store the resolution information for an expression."""
         self.locals[expr] = depth
@@ -1569,7 +1567,7 @@ class Resolver:
     
     def visit_return_stmt(self, stmt):
         if self.current_function == FunctionType.NONE:
-            print("Cannot return from top-level code.", file=sys.stderr)
+            self.error(stmt.keyword, "Can't return from top-level code.")
         
         if stmt.value:
             self.resolve(stmt.value)
