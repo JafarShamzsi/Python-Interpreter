@@ -109,6 +109,27 @@ class Unary(Expr):
     def accept(self, visitor):
         return visitor.visit_unary_expr(self)
 
+# AST classes for statements
+class Stmt:
+    """Base class for all statements."""
+    pass
+
+class Expression(Stmt):
+    """Statement that evaluates an expression."""
+    def __init__(self, expression):
+        self.expression = expression
+    
+    def accept(self, visitor):
+        return visitor.visit_expression_stmt(self)
+
+class Print(Stmt):
+    """Print statement."""
+    def __init__(self, expression):
+        self.expression = expression
+    
+    def accept(self, visitor):
+        return visitor.visit_print_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -147,9 +168,9 @@ class AstPrinter:
         
         return "".join(builder)
 
-# Parser for building the AST
+# Update the Parser to handle statements
 class Parser:
-    """Parses tokens into an AST."""
+    """Parses tokens into statements."""
     
     def __init__(self, tokens):
         self.tokens = tokens
@@ -157,13 +178,30 @@ class Parser:
         self.had_error = False
     
     def parse(self):
-        """Parse tokens into an expression."""
-        try:
-            return self.expression()
-        except Exception as error:
-            self.had_error = True
-            print(f"Error: {error}", file=sys.stderr)
-            return None
+        """Parse tokens into a list of statements."""
+        statements = []
+        while not self.is_at_end():
+            statements.append(self.statement())
+        return statements
+    
+    def statement(self):
+        """Parse a statement."""
+        if self.match(TokenType.PRINT):
+            return self.print_statement()
+        
+        return self.expression_statement()
+    
+    def print_statement(self):
+        """Parse a print statement."""
+        value = self.expression()
+        self.consume(TokenType.SEMICOLON, "Expect ';' after value.")
+        return Print(value)
+    
+    def expression_statement(self):
+        """Parse an expression statement."""
+        expr = self.expression()
+        self.consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        return Expression(expr)
     
     def expression(self):
         """Parse an expression."""
@@ -511,28 +549,41 @@ class Scanner:
         """Check if we've reached the end of the source."""
         return self.current >= len(self.source)
 
-# Interpreter for evaluating expressions
+# Update the Interpreter to handle statements
 class Interpreter:
-    """Evaluates expressions and returns their values."""
+    """Evaluates expressions and executes statements."""
     
     def __init__(self):
         self.had_runtime_error = False
     
-    def interpret(self, expr):
-        """Interpret an expression and return its value."""
+    def interpret(self, statements):
+        """Interpret a list of statements."""
         try:
-            value = self.evaluate(expr)
-            return self.stringify(value)
+            for stmt in statements:
+                self.execute(stmt)
         except LoxRuntimeError as error:
             # Handle runtime errors
             self.had_runtime_error = True
             print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
-            return None
         except Exception as error:
             # Handle other unexpected errors
             self.had_runtime_error = True
             print(f"Runtime Error: {error}", file=sys.stderr)
-            return None
+    
+    def execute(self, stmt):
+        """Execute a statement."""
+        stmt.accept(self)
+    
+    def visit_expression_stmt(self, stmt):
+        """Execute an expression statement."""
+        self.evaluate(stmt.expression)
+        return None
+    
+    def visit_print_stmt(self, stmt):
+        """Execute a print statement."""
+        value = self.evaluate(stmt.expression)
+        print(self.stringify(value))
+        return None
     
     def evaluate(self, expr):
         """Evaluate an expression and return its value."""
@@ -684,15 +735,16 @@ class Interpreter:
         # For strings and other types
         return str(value)
 
+# Update main function to support the 'run' command
 def main():
     if len(sys.argv) < 3:
-        print("Usage: ./your_program.sh [tokenize|parse|evaluate] <filename>", file=sys.stderr)
+        print("Usage: ./your_program.sh [tokenize|parse|evaluate|run] <filename>", file=sys.stderr)
         exit(1)
 
     command = sys.argv[1]
     filename = sys.argv[2]
 
-    if command not in ["tokenize", "parse", "evaluate"]:
+    if command not in ["tokenize", "parse", "evaluate", "run"]:
         print(f"Unknown command: {command}", file=sys.stderr)
         exit(1)
 
@@ -712,9 +764,10 @@ def main():
         for token in tokens:
             print(token)
     elif command == "parse":
-        # Parse the tokens into an AST and print it
+        # Parse a single expression and print its AST representation
         parser = Parser(tokens)
-        expression = parser.parse()
+        expression = parser.expression()
+        self.consume(TokenType.EOF, "Expect end of expression.")
         if expression:
             printer = AstPrinter()
             print(printer.print(expression))
@@ -722,26 +775,37 @@ def main():
             print("Error: Failed to parse expression.", file=sys.stderr)
             exit(65)
     elif command == "evaluate":
-        # Parse and evaluate the expression
+        # Parse and evaluate a single expression
         parser = Parser(tokens)
-        expression = parser.parse()
+        expression = parser.expression()
+        self.consume(TokenType.EOF, "Expect end of expression.")
         if expression:
             interpreter = Interpreter()
-            result = interpreter.interpret(expression)
+            result = interpreter.evaluate(expression)
             if interpreter.had_runtime_error:
                 exit(70)  # Runtime error
-            if result is not None:
-                print(result)
+            print(interpreter.stringify(result))
         else:
             print("Error: Failed to parse expression.", file=sys.stderr)
             exit(65)
+    elif command == "run":
+        # Parse and execute a program
+        parser = Parser(tokens)
+        statements = parser.parse()
+        if not parser.had_error:
+            interpreter = Interpreter()
+            interpreter.interpret(statements)
+            if interpreter.had_runtime_error:
+                exit(70)  # Runtime error
+        else:
+            exit(65)  # Syntax error
     
     # Exit with code 65 if there were lexical errors
     if scanner.had_error:
         exit(65)
     
     # Exit with code 65 if there were parsing errors
-    if (command == "parse" or command == "evaluate") and parser.had_error:
+    if (command in ["parse", "evaluate", "run"]) and parser.had_error:
         exit(65)
 
 
