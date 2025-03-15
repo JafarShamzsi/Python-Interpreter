@@ -109,6 +109,14 @@ class Unary(Expr):
     def accept(self, visitor):
         return visitor.visit_unary_expr(self)
 
+class Variable(Expr):
+    """Variable reference expression."""
+    def __init__(self, name):
+        self.name = name  # Token
+    
+    def accept(self, visitor):
+        return visitor.visit_variable_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -129,6 +137,15 @@ class Print(Stmt):
     
     def accept(self, visitor):
         return visitor.visit_print_stmt(self)
+
+class Var(Stmt):
+    """Variable declaration statement."""
+    def __init__(self, name, initializer):
+        self.name = name  # Token
+        self.initializer = initializer  # Expression
+    
+    def accept(self, visitor):
+        return visitor.visit_var_stmt(self)
 
 # AST Printer for generating the output format
 class AstPrinter:
@@ -770,6 +787,24 @@ class Interpreter:
             return text
         # For strings and other types
         return str(value)
+
+# Add Environment class
+class Environment:
+    """Environment for storing variable bindings."""
+    
+    def __init__(self):
+        self.values = {}
+    
+    def define(self, name, value):
+        """Define a new variable with the given name and value."""
+        self.values[name] = value
+    
+    def get(self, name):
+        """Get the value of a variable."""
+        if name.lexeme in self.values:
+            return self.values[name.lexeme]
+        
+        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
 
 # Update main function to support the 'run' command
 def main():
