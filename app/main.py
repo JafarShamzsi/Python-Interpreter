@@ -321,6 +321,12 @@ class Parser:
         if self.match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self.previous().literal)
         
+        # Add this to handle variable references
+        if self.match(TokenType.IDENTIFIER):
+            return Variable(self.previous())
+        
+        # Rest of your primary method...
+        
         # Handle parenthesized expressions
         if self.match(TokenType.LEFT_PAREN):
             # Parse the expression inside the parentheses
@@ -616,6 +622,7 @@ class Interpreter:
     
     def __init__(self):
         self.had_runtime_error = False
+        self.environment = Environment()  # Add environment field
     
     def interpret(self, statements):
         """Interpret a list of statements."""
@@ -645,6 +652,19 @@ class Interpreter:
         value = self.evaluate(stmt.expression)
         print(self.stringify(value))
         return None
+    
+    def visit_var_stmt(self, stmt):
+        """Execute a variable declaration statement."""
+        value = None
+        if stmt.initializer is not None:
+            value = self.evaluate(stmt.initializer)
+        
+        self.environment.define(stmt.name.lexeme, value)
+        return None
+
+    def visit_variable_expr(self, expr):
+        """Evaluate a variable reference expression."""
+        return self.environment.get(expr.name)
     
     def evaluate(self, expr):
         """Evaluate an expression and return its value."""
