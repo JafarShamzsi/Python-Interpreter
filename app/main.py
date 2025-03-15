@@ -166,6 +166,17 @@ class Block(Stmt):
     def accept(self, visitor):
         return visitor.visit_block_stmt(self)
 
+# Add If statement class
+class If(Stmt):
+    """If statement with condition and branches."""
+    def __init__(self, condition, then_branch, else_branch=None):
+        self.condition = condition  # Expression to evaluate
+        self.then_branch = then_branch  # Statement to execute if condition is true
+        self.else_branch = else_branch  # Optional statement to execute if condition is false
+    
+    def accept(self, visitor):
+        return visitor.visit_if_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -247,6 +258,9 @@ class Parser:
     
     def statement(self):
         """Parse a statement."""
+        if self.match(TokenType.IF):
+            return self.if_statement()
+        
         if self.match(TokenType.PRINT):
             return self.print_statement()
         
@@ -254,6 +268,27 @@ class Parser:
             return Block(self.block())
         
         return self.expression_statement()
+
+    def if_statement(self):
+        """Parse an if statement."""
+        # Consume the opening parenthesis after 'if'
+        self.consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
+        
+        # Parse the condition expression
+        condition = self.expression()
+        
+        # Consume the closing parenthesis
+        self.consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
+        
+        # Parse the then-branch statement
+        then_branch = self.statement()
+        
+        # Check for optional else-branch
+        else_branch = None
+        if self.match(TokenType.ELSE):
+            else_branch = self.statement()
+        
+        return If(condition, then_branch, else_branch)
 
     def block(self):
         """Parse a block of statements."""
@@ -907,6 +942,21 @@ class Interpreter:
         finally:
             # Restore the previous environment when done
             self.environment = previous
+
+    def visit_if_stmt(self, stmt):
+        """Execute an if statement."""
+        # Evaluate the condition
+        condition = self.evaluate(stmt.condition)
+        
+        # Check if the condition is truthy
+        if self.is_truthy(condition):
+            # Execute the then-branch
+            self.execute(stmt.then_branch)
+        elif stmt.else_branch is not None:
+            # Execute the else-branch if it exists
+            self.execute(stmt.else_branch)
+        
+        return None
 
 # Update the Environment class to support nesting
 class Environment:
