@@ -1449,11 +1449,12 @@ class Resolver:
     def declare(self, name):
         """Declare a variable in the current scope."""
         if not self.scopes:
-            return  # Skip for global scope
+            return  # Skip for global scope - redeclarations allowed in global scope
         
         scope = self.scopes[-1]
         if name.lexeme in scope:
-            print(f"Variable {name.lexeme} already declared in this scope.", file=sys.stderr)
+            # Report error with proper error message format
+            self.error(name, "Already a variable with this name in this scope.")
         
         # Mark as declared but not defined
         scope[name.lexeme] = False
@@ -1547,6 +1548,13 @@ class Resolver:
         # Declare and define the function name
         self.declare(stmt.name)
         self.define(stmt.name)
+        
+        # Check for duplicate parameters before resolving function
+        seen_params = set()
+        for param in stmt.params:
+            if param.lexeme in seen_params:
+                self.error(param, "Already a variable with this name in this scope.")
+            seen_params.add(param.lexeme)
         
         self.resolve_function(stmt, FunctionType.FUNCTION)
     
