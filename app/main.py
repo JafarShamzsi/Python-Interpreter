@@ -547,8 +547,28 @@ class Interpreter:
     
     def visit_binary_expr(self, expr):
         """Evaluate a binary expression."""
-        # Placeholder for future implementation
-        raise NotImplementedError("Binary expressions not yet implemented")
+        # Evaluate both operands
+        left = self.evaluate(expr.left)
+        right = self.evaluate(expr.right)
+        
+        # Handle different binary operators
+        if expr.operator.token_type == TokenType.STAR:
+            # Multiplication
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) * float(right)
+        elif expr.operator.token_type == TokenType.SLASH:
+            # Division
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) / float(right)
+        
+        # Placeholder for other binary operators to be implemented later
+        raise NotImplementedError(f"Binary operator {expr.operator.lexeme} not yet implemented")
+
+    def check_number_operands(self, operator, left, right):
+        """Verify that both operands are numbers."""
+        if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            return
+        raise Exception(f"Operands must be numbers.")
     
     def is_truthy(self, value):
         """
