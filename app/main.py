@@ -952,6 +952,8 @@ class Interpreter:
     def __init__(self):
         self.had_runtime_error = False
         self.environment = Environment()
+        self.globals = self.environment  # Reference to global environment
+        self.locals = {}  # Map expressions to their resolved depths
         
         # Define native clock function
         self.environment.define("clock", NativeFunction(lambda _: time.time(), 0))
@@ -996,13 +998,29 @@ class Interpreter:
 
     def visit_variable_expr(self, expr):
         """Evaluate a variable reference expression."""
-        return self.environment.get(expr.name)
+        return self.lookup_variable(expr.name, expr)
+    
+    def lookup_variable(self, name, expr):
+        """Look up a variable using static resolution information if available."""
+        if expr in self.locals:
+            distance = self.locals[expr]
+            return self.environment.get_at(distance, name.lexeme)
+        else:
+            # Not resolved locally, must be global
+            return self.globals.get(name)
     
     # 4. Add the interpreter method for assignment expressions
     def visit_assign_expr(self, expr):
         """Evaluate an assignment expression."""
         value = self.evaluate(expr.value)
-        self.environment.set(expr.name, value)
+        
+        if expr in self.locals:
+            distance = self.locals[expr]
+            self.environment.assign_at(distance, expr.name, value)
+        else:
+            # Global variable
+            self.globals.assign(expr.name, value)
+        
         return value
     
     def evaluate(self, expr):
@@ -1272,6 +1290,10 @@ class Interpreter:
         
         # Using an exception for control flow to return early from nested calls
         raise ReturnException(value)
+    
+    def resolve(self, expr, depth):
+        """Store the resolution information for an expression."""
+        self.locals[expr] = depth
 
 # 2. LoxFunction class for runtime function objects
 class LoxFunction(LoxCallable):
@@ -1347,6 +1369,21 @@ class Environment:
             return self.enclosing.set(name, value)
             
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+
+    def get_at(self, distance, name):
+        """Get the value of a variable at a specific distance."""
+        return self.ancestor(distance).values.get(name)
+
+    def assign_at(self, distance, name, value):
+        """Assign a value to a variable at a specific distance."""
+        self.ancestor(distance).values[name.lexeme] = value
+
+    def ancestor(self, distance):
+        """Get the environment at a specific distance."""
+        environment = self
+        for _ in range(distance):
+            environment = environment.enclosing
+        return environment
 
 import time
 
@@ -1441,8 +1478,18 @@ def main():
         if parser.had_error:
             exit(65)  # Syntax error
         
-        # Run the interpreter
+        # Create the interpreter
         interpreter = Interpreter()
+        
+        # Run the resolver
+        resolver = Resolver(interpreter)
+        try:
+            resolver.resolve(statements)
+        except Exception as error:
+            print(f"Resolution error: {error}", file=sys.stderr)
+            exit(65)
+        
+        # Run the interpreter
         interpreter.interpret(statements)
         if interpreter.had_runtime_error:
             exit(70)  # Runtime error
@@ -1450,3 +1497,158 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Add these enums for tracking function and class context
+class FunctionType(Enum):
+    NONE = 0
+    FUNCTION = 1
+
+class Resolver:
+    """Performs static analysis on the AST to resolve variable bindings."""
+    
+    def __init__(self, interpreter):
+        self.interpreter = interpreter
+        self.scopes = []  # Stack of scopes
+        self.current_function = FunctionType.NONE
+    
+    def resolve(self, statements_or_expr):
+        """Resolve variable bindings in statements or expression."""
+        if isinstance(statements_or_expr, list):
+            for statement in statements_or_expr:
+                self.resolve(statement)
+        else:
+            statements_or_expr.accept(self)
+    
+    def begin_scope(self):
+        """Start a new scope."""
+        self.scopes.append({})
+    
+    def end_scope(self):
+        """End the current scope."""
+        self.scopes.pop()
+    
+    def declare(self, name):
+        """Declare a variable in the current scope."""
+        if not self.scopes:
+            return  # Skip for global scope
+        
+        scope = self.scopes[-1]
+        if name.lexeme in scope:
+            print(f"Variable {name.lexeme} already declared in this scope.", file=sys.stderr)
+        
+        # Mark as declared but not defined
+        scope[name.lexeme] = False
+    
+    def define(self, name):
+        """Define a variable (mark it as initialized)."""
+        if not self.scopes:
+            return  # Skip for global scope
+        
+        self.scopes[-1][name.lexeme] = True
+    
+    def resolve_local(self, expr, name):
+        """Resolve a local variable reference."""
+        # Search scopes from innermost to outermost
+        for i in range(len(self.scopes) - 1, -1, -1):
+            if name.lexeme in self.scopes[i]:
+                # Tell interpreter how many scopes away this variable is
+                self.interpreter.resolve(expr, len(self.scopes) - 1 - i)
+                return
+        
+        # Not found, assume it's global
+    
+    def resolve_function(self, function, function_type):
+        """Resolve a function declaration."""
+        enclosing_function = self.current_function
+        self.current_function = function_type
+        
+        self.begin_scope()
+        
+        # Declare and define each parameter
+        for param in function.params:
+            self.declare(param)
+            self.define(param)
+        
+        # Resolve the function body
+        self.resolve(function.body)
+        
+        self.end_scope()
+        self.current_function = enclosing_function
+    
+    # Visitor methods for expressions
+    def visit_binary_expr(self, expr):
+        self.resolve(expr.left)
+        self.resolve(expr.right)
+    
+    def visit_call_expr(self, expr):
+        self.resolve(expr.callee)
+        
+        for argument in expr.arguments:
+            self.resolve(argument)
+    
+    def visit_grouping_expr(self, expr):
+        self.resolve(expr.expression)
+    
+    def visit_literal_expr(self, expr):
+        # Nothing to resolve in literals
+        pass
+    
+    def visit_logical_expr(self, expr):
+        self.resolve(expr.left)
+        self.resolve(expr.right)
+    
+    def visit_unary_expr(self, expr):
+        self.resolve(expr.right)
+    
+    def visit_variable_expr(self, expr):
+        # Check if we're trying to read a variable in its own initializer
+        if self.scopes and expr.name.lexeme in self.scopes[-1] and self.scopes[-1][expr.name.lexeme] is False:
+            print(f"Cannot read local variable {expr.name.lexeme} in its own initializer.", file=sys.stderr)
+        
+        self.resolve_local(expr, expr.name)
+    
+    def visit_assign_expr(self, expr):
+        self.resolve(expr.value)
+        self.resolve_local(expr, expr.name)
+    
+    # Visitor methods for statements
+    def visit_block_stmt(self, stmt):
+        self.begin_scope()
+        self.resolve(stmt.statements)
+        self.end_scope()
+    
+    def visit_expression_stmt(self, stmt):
+        self.resolve(stmt.expression)
+    
+    def visit_function_stmt(self, stmt):
+        # Declare and define the function name
+        self.declare(stmt.name)
+        self.define(stmt.name)
+        
+        self.resolve_function(stmt, FunctionType.FUNCTION)
+    
+    def visit_if_stmt(self, stmt):
+        self.resolve(stmt.condition)
+        self.resolve(stmt.then_branch)
+        if stmt.else_branch:
+            self.resolve(stmt.else_branch)
+    
+    def visit_print_stmt(self, stmt):
+        self.resolve(stmt.expression)
+    
+    def visit_return_stmt(self, stmt):
+        if self.current_function == FunctionType.NONE:
+            print("Cannot return from top-level code.", file=sys.stderr)
+        
+        if stmt.value:
+            self.resolve(stmt.value)
+    
+    def visit_var_stmt(self, stmt):
+        self.declare(stmt.name)
+        if stmt.initializer:
+            self.resolve(stmt.initializer)
+        self.define(stmt.name)
+    
+    def visit_while_stmt(self, stmt):
+        self.resolve(stmt.condition)
+        self.resolve(stmt.body)
