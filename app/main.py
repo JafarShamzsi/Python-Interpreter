@@ -530,13 +530,44 @@ class Interpreter:
     
     def visit_unary_expr(self, expr):
         """Evaluate a unary expression."""
-        # Placeholder for future implementation
-        raise NotImplementedError("Unary expressions not yet implemented")
+        # Evaluate the operand first
+        right = self.evaluate(expr.right)
+        
+        # Handle different unary operators
+        if expr.operator.token_type == TokenType.MINUS:
+            # Negation operator: ensure operand is a number
+            self.check_number_operand(expr.operator, right)
+            return -float(right)
+        elif expr.operator.token_type == TokenType.BANG:
+            # Logical NOT operator: invert truthiness
+            return not self.is_truthy(right)
+        
+        # Unreachable
+        return None
     
     def visit_binary_expr(self, expr):
         """Evaluate a binary expression."""
         # Placeholder for future implementation
         raise NotImplementedError("Binary expressions not yet implemented")
+    
+    def is_truthy(self, value):
+        """
+        Determine truthiness according to Lox rules:
+        - false and nil are falsy
+        - everything else is truthy
+        """
+        if value is None:  # nil
+            return False
+        if isinstance(value, bool):  # boolean
+            return value
+        # Everything else is truthy
+        return True
+    
+    def check_number_operand(self, operator, operand):
+        """Verify that an operand is a number."""
+        if isinstance(operand, (int, float)):
+            return
+        raise Exception(f"Operand must be a number.")
     
     def stringify(self, value):
         """Convert a value to its string representation."""
