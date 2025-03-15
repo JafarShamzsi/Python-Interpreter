@@ -347,17 +347,29 @@ class Parser:
         
         return expr
 
+    # Update Parser to handle logical AND expressions
     def logic_or(self):
         """Parse a logical OR expression."""
-        expr = self.equality()  # We'll implement AND in a future stage
+        expr = self.logic_and()  # Changed from self.equality()
         
         while self.match(TokenType.OR):
+            operator = self.previous()
+            right = self.logic_and()  # Changed from self.equality()
+            expr = Logical(expr, operator, right)
+        
+        return expr
+
+    def logic_and(self):
+        """Parse a logical AND expression."""
+        expr = self.equality()
+        
+        while self.match(TokenType.AND):
             operator = self.previous()
             right = self.equality()
             expr = Logical(expr, operator, right)
         
         return expr
-    
+
     def equality(self):
         """Parse an equality comparison (==, !=)."""
         expr = self.comparison()
@@ -990,8 +1002,14 @@ class Interpreter:
             # If left side is truthy, return it without evaluating right side
             if self.is_truthy(left):
                 return left
+        # Short-circuit evaluation for AND    
+        elif expr.operator.token_type == TokenType.AND:
+            # If left side is falsy, return it without evaluating right side
+            if not self.is_truthy(left):
+                return left
         
-        # Otherwise, evaluate and return right side
+        # For OR: if left side is falsy, evaluate and return right side
+        # For AND: if left side is truthy, evaluate and return right side
         return self.evaluate(expr.right)
 
 # Update the Environment class to support nesting
