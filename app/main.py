@@ -117,6 +117,16 @@ class Variable(Expr):
     def accept(self, visitor):
         return visitor.visit_variable_expr(self)
 
+# 1. Add the Assign expression class
+class Assign(Expr):
+    """Assignment expression."""
+    def __init__(self, name, value):
+        self.name = name  # Token for variable name
+        self.value = value  # Expression for value being assigned
+    
+    def accept(self, visitor):
+        return visitor.visit_assign_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -245,9 +255,29 @@ class Parser:
         self.consume(TokenType.SEMICOLON, "Expect ';' after expression.")
         return Expression(expr)
     
+    # 3. Update the Parser to handle assignment expressions
     def expression(self):
         """Parse an expression."""
-        return self.equality()
+        return self.assignment()  # Start with assignment now
+
+    def assignment(self):
+        """Parse an assignment expression."""
+        expr = self.equality()  # Parse the left side as normal
+        
+        if self.match(TokenType.EQUAL):
+            equals = self.previous()
+            # Recursively parse the right side (for right associativity)
+            value = self.assignment()
+            
+            # If the left side is a variable, create an assignment
+            if isinstance(expr, Variable):
+                name = expr.name
+                return Assign(name, value)
+            
+            # Otherwise, it's an invalid assignment target
+            raise Exception("Invalid assignment target.")
+        
+        return expr
     
     def equality(self):
         """Parse an equality comparison (==, !=)."""
@@ -666,6 +696,13 @@ class Interpreter:
         """Evaluate a variable reference expression."""
         return self.environment.get(expr.name)
     
+    # 4. Add the interpreter method for assignment expressions
+    def visit_assign_expr(self, expr):
+        """Evaluate an assignment expression."""
+        value = self.evaluate(expr.value)
+        self.environment.set(expr.name, value)
+        return value
+    
     def evaluate(self, expr):
         """Evaluate an expression and return its value."""
         return expr.accept(self)
@@ -842,6 +879,15 @@ class Environment:
         """Get the value of a variable."""
         if name.lexeme in self.values:
             return self.values[name.lexeme]
+        
+        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+
+    # 2. Update the Environment class with a set method
+    def set(self, name, value):
+        """Set the value of an existing variable."""
+        if name.lexeme in self.values:
+            self.values[name.lexeme] = value
+            return value
         
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
 
