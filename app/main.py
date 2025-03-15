@@ -1349,8 +1349,15 @@ class Interpreter:
 
     def visit_class_stmt(self, stmt):
         """Execute a class declaration statement."""
-        # Create the class object
-        klass = LoxClass(stmt.name.lexeme)
+        # Create the class object with methods
+        methods = {}
+        
+        # Add methods to the class
+        for method in stmt.methods:
+            function = LoxFunction(method, self.environment)
+            methods[method.name.lexeme] = function
+        
+        klass = LoxClass(stmt.name.lexeme, methods)
         
         # Define the class in the current environment
         self.environment.define(stmt.name.lexeme, klass)
@@ -1409,6 +1416,23 @@ class LoxFunction(LoxCallable):
     
     def __str__(self):
         return f"<fn {self.declaration.name.lexeme}>"
+
+# Add this class after LoxFunction
+class LoxMethod(LoxCallable):
+    """A method bound to an instance."""
+    
+    def __init__(self, instance, method):
+        self.instance = instance  # The instance this method is bound to
+        self.method = method      # The LoxFunction for this method
+    
+    def call(self, interpreter, arguments):
+        return self.method.call(interpreter, arguments)
+    
+    def arity(self):
+        return self.method.arity()
+    
+    def __str__(self):
+        return f"<method {self.method.declaration.name.lexeme}>"
 
 # Custom exception for handling return values
 class ReturnException(Exception):
@@ -1501,8 +1525,15 @@ class NativeFunction(LoxCallable):
 class LoxClass(LoxCallable):
     """Runtime representation of a Lox class."""
     
-    def __init__(self, name):
+    def __init__(self, name, methods=None):
         self.name = name
+        self.methods = methods or {}  # Dictionary of method name -> LoxFunction
+    
+    def find_method(self, name):
+        """Find a method by name."""
+        if name in self.methods:
+            return self.methods[name]
+        return None
     
     def call(self, interpreter, arguments):
         # Create a new instance of this class
@@ -1528,6 +1559,11 @@ class LoxInstance:
         """Get a property value."""
         if name.lexeme in self.fields:
             return self.fields[name.lexeme]
+        
+        # Look for a method
+        method = self.klass.find_method(name.lexeme)
+        if method is not None:
+            return LoxMethod(self, method)
         
         # Property not found
         raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
