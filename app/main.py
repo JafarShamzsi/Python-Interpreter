@@ -794,6 +794,10 @@ def main():
     scanner = Scanner(file_contents)
     tokens = scanner.scan_tokens()
     
+    # Exit early if there were lexical errors
+    if scanner.had_error:
+        exit(65)
+    
     # Handle different commands
     if command == "tokenize":
         # Print tokens in the required format
@@ -815,50 +819,37 @@ def main():
             print(f"Parse error: {error}", file=sys.stderr)
             exit(65)
     elif command == "evaluate":
-        # Parse and evaluate a single expression
+        # First parse the expression (handle syntax errors)
         parser = Parser(tokens)
+        expression = None
         try:
             expression = parser.expression()
             parser.consume(TokenType.EOF, "Expect end of expression.")
-            
-            # Evaluate the expression
-            interpreter = Interpreter()
-            result = interpreter.evaluate(expression)
-            
-            # Check for runtime errors
-            if interpreter.had_runtime_error:
-                exit(70)  # Runtime error
-                
-            # Print the result
-            print(interpreter.stringify(result))
-            
-        except LoxRuntimeError as error:
-            # Handle runtime errors
-            print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
-            exit(70)  # Runtime error
         except Exception as error:
-            # Handle parser errors
             print(f"Parse error: {error}", file=sys.stderr)
             exit(65)
+            
+        # Now evaluate the expression (handle runtime errors)
+        if expression:
+            interpreter = Interpreter()
+            try:
+                result = interpreter.evaluate(expression)
+                print(interpreter.stringify(result))
+            except LoxRuntimeError as error:
+                print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
+                exit(70)  # Runtime error
     elif command == "run":
         # Parse and execute a program
         parser = Parser(tokens)
         statements = parser.parse()
-        if not parser.had_error:
-            interpreter = Interpreter()
-            interpreter.interpret(statements)
-            if interpreter.had_runtime_error:
-                exit(70)  # Runtime error
-        else:
+        if parser.had_error:
             exit(65)  # Syntax error
-    
-    # Exit with code 65 if there were lexical errors
-    if scanner.had_error:
-        exit(65)
-    
-    # Exit with code 65 if there were parsing errors
-    if (command in ["parse", "evaluate", "run"]) and parser.had_error:
-        exit(65)
+        
+        # Run the interpreter
+        interpreter = Interpreter()
+        interpreter.interpret(statements)
+        if interpreter.had_runtime_error:
+            exit(70)  # Runtime error
 
 
 if __name__ == "__main__":
