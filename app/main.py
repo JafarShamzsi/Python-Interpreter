@@ -59,7 +59,6 @@ class TokenType(Enum):
     # End of file
     EOF = "EOF"
 
-# Update the Token class to include line information
 class Token:
     def __init__(self, token_type, lexeme, literal=None, line=1):
         self.token_type = token_type
@@ -331,7 +330,7 @@ class Scanner:
             self.scan_token()
         
         # Add EOF token at the end
-        self.tokens.append(Token(TokenType.EOF, "", None, self.line))
+        self.tokens.append(Token(TokenType.EOF, "", None))
         return self.tokens
     
     def scan_token(self):
@@ -498,7 +497,6 @@ class Scanner:
         print(f"[line {self.line}] Error: Unexpected character: {character}", file=sys.stderr)
         self.had_error = True
     
-    # Update the Scanner's add_token method to include the line number
     def add_token(self, token_type, literal=None):
         """Add a token to the list."""
         lexeme = self.source[self.start:self.current]
@@ -513,7 +511,7 @@ class Scanner:
         """Check if we've reached the end of the source."""
         return self.current >= len(self.source)
 
-# Update the Interpreter class
+# Interpreter for evaluating expressions
 class Interpreter:
     """Evaluates expressions and returns their values."""
     
@@ -529,6 +527,11 @@ class Interpreter:
             # Handle runtime errors
             self.had_runtime_error = True
             print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
+            return None
+        except Exception as error:
+            # Handle other unexpected errors
+            self.had_runtime_error = True
+            print(f"Runtime Error: {error}", file=sys.stderr)
             return None
     
     def evaluate(self, expr):
@@ -717,10 +720,10 @@ def main():
         if expression:
             interpreter = Interpreter()
             result = interpreter.interpret(expression)
+            if interpreter.had_runtime_error:
+                exit(70)  # Runtime error
             if result is not None:
                 print(result)
-            else:
-                exit(70)  # Runtime error
         else:
             print("Error: Failed to parse expression.", file=sys.stderr)
             exit(65)
