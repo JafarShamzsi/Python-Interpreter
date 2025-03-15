@@ -819,25 +819,32 @@ def main():
             print(f"Parse error: {error}", file=sys.stderr)
             exit(65)
     elif command == "evaluate":
-        # First parse the expression (handle syntax errors)
-        parser = Parser(tokens)
-        expression = None
         try:
+            # Parse the expression
+            parser = Parser(tokens)
             expression = parser.expression()
             parser.consume(TokenType.EOF, "Expect end of expression.")
-        except Exception as error:
-            print(f"Parse error: {error}", file=sys.stderr)
-            exit(65)
             
-        # Now evaluate the expression (handle runtime errors)
-        if expression:
-            interpreter = Interpreter()
-            try:
-                result = interpreter.evaluate(expression)
-                print(interpreter.stringify(result))
-            except LoxRuntimeError as error:
-                print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
-                exit(70)  # Runtime error
+            # Only attempt to evaluate if parsing was successful
+            if not parser.had_error:
+                # Evaluate the expression
+                interpreter = Interpreter()
+                try:
+                    value = interpreter.evaluate(expression)
+                    print(interpreter.stringify(value))
+                except LoxRuntimeError as error:
+                    print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
+                    exit(70)  # Runtime error
+            else:
+                exit(65)  # Syntax error
+        except LoxRuntimeError as error:
+            # This catches runtime errors that happen during parsing
+            print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
+            exit(70)  # Runtime error
+        except Exception as error:
+            # This catches syntax errors
+            print(f"Parse error: {error}", file=sys.stderr)
+            exit(65)  # Syntax error
     elif command == "run":
         # Parse and execute a program
         parser = Parser(tokens)
