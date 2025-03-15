@@ -560,6 +560,14 @@ class Interpreter:
             # Division
             self.check_number_operands(expr.operator, left, right)
             return float(left) / float(right)
+        elif expr.operator.token_type == TokenType.PLUS:
+            # Addition
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) + float(right)
+        elif expr.operator.token_type == TokenType.MINUS:
+            # Subtraction
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) - float(right)
         
         # Placeholder for other binary operators to be implemented later
         raise NotImplementedError(f"Binary operator {expr.operator.lexeme} not yet implemented")
