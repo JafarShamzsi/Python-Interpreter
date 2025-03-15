@@ -1283,11 +1283,13 @@ class Interpreter:
         return None
 
     def visit_return_stmt(self, stmt):
-        if self.current_function == FunctionType.NONE:
-            self.error(stmt.keyword, "Can't return from top-level code.")
+        """Execute a return statement."""
+        value = None
+        if stmt.value is not None:
+            value = self.evaluate(stmt.value)
         
-        if stmt.value:
-            self.resolve(stmt.value)
+        # Use the ReturnException to return from the function
+        raise ReturnException(value)
 
     def resolve(self, expr, depth):
         """Store the resolution information for an expression."""
