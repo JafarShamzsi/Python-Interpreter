@@ -138,6 +138,17 @@ class Logical(Expr):
     def accept(self, visitor):
         return visitor.visit_logical_expr(self)
 
+# Create a Call expression class
+class Call(Expr):
+    """Function call expression."""
+    def __init__(self, callee, paren, arguments):
+        self.callee = callee      # Expression to evaluate to a function
+        self.paren = paren        # Token for error reporting
+        self.arguments = arguments  # List of argument expressions
+    
+    def accept(self, visitor):
+        return visitor.visit_call_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -495,9 +506,37 @@ class Parser:
             right = self.unary()  # Parse the operand (recursively)
             return Unary(operator, right)
         
-        # If no unary operator, parse as a primary expression
-        return self.primary()
-    
+        # If no unary operator, parse as a call expression
+        return self.call()  # Changed from self.primary()
+
+    def call(self):
+        """Parse a function call."""
+        expr = self.primary()
+        
+        while True:
+            if self.match(TokenType.LEFT_PAREN):
+                expr = self.finish_call(expr)
+            else:
+                break
+        
+        return expr
+
+    def finish_call(self, callee):
+        """Parse the arguments of a function call."""
+        arguments = []
+        
+        if not self.check(TokenType.RIGHT_PAREN):
+            # Parse arguments
+            arguments.append(self.expression())
+            while self.match(TokenType.COMMA):
+                if len(arguments) >= 255:
+                    raise Exception("Can't have more than 255 arguments.")
+                arguments.append(self.expression())
+        
+        paren = self.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+        
+        return Call(callee, paren, arguments)
+
     def primary(self):
         """Parse a primary expression."""
         if self.match(TokenType.FALSE):
@@ -827,7 +866,10 @@ class Interpreter:
     
     def __init__(self):
         self.had_runtime_error = False
-        self.environment = Environment()  # Add environment field
+        self.environment = Environment()
+        
+        # Define native clock function
+        self.environment.define("clock", NativeFunction(lambda _: time.time(), 0))
     
     def interpret(self, statements):
         """Interpret a list of statements."""
@@ -1036,6 +1078,9 @@ class Interpreter:
             if text.endswith(".0"):
                 text = text[:-2]
             return text
+        if isinstance(value, LoxCallable):
+            # For callable objects, use their string representation
+            return str(value)
         # For strings and other types
         return str(value)
 
@@ -1104,6 +1149,26 @@ class Interpreter:
         
         return None
 
+    def visit_call_expr(self, expr):
+        """Evaluate a function call expression."""
+        callee = self.evaluate(expr.callee)
+        
+        arguments = []
+        for argument in expr.arguments:
+            arguments.append(self.evaluate(argument))
+        
+        # Check if callee is callable
+        if not isinstance(callee, LoxCallable):
+            raise LoxRuntimeError(expr.paren, "Can only call functions and classes.")
+        
+        # Check argument count
+        if len(arguments) != callee.arity():
+            raise LoxRuntimeError(expr.paren, 
+                               f"Expected {callee.arity()} arguments but got {len(arguments)}.")
+        
+        # Call the function
+        return callee.call(self, arguments)
+
 # Update the Environment class to support nesting
 class Environment:
     """Environment for storing variable bindings."""
@@ -1138,6 +1203,35 @@ class Environment:
             return self.enclosing.set(name, value)
             
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+
+import time
+
+# Add a callable interface
+class LoxCallable:
+    """Interface for callable objects in Lox."""
+    def call(self, interpreter, arguments):
+        """Call the function with the given arguments."""
+        pass
+
+    def arity(self):
+        """Return the number of arguments this function expects."""
+        pass
+
+# Implement native functions
+class NativeFunction(LoxCallable):
+    """A native function implemented in Python."""
+    def __init__(self, function, arity):
+        self.function = function
+        self._arity = arity
+        
+    def call(self, interpreter, arguments):
+        return self.function(arguments)
+        
+    def arity(self):
+        return self._arity
+        
+    def __str__(self):
+        return "<native fn>"
 
 # Update main function to support the 'run' command
 def main():
