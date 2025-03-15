@@ -230,6 +230,16 @@ class Return(Stmt):
     def accept(self, visitor):
         return visitor.visit_return_stmt(self)
 
+# Add after the other statement classes (around line 260)
+class Class(Stmt):
+    """Class declaration statement."""
+    def __init__(self, name, methods):
+        self.name = name        # Token for class name
+        self.methods = methods  # List of Function objects (methods)
+    
+    def accept(self, visitor):
+        return visitor.visit_class_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -1295,6 +1305,16 @@ class Interpreter:
         """Store the resolution information for an expression."""
         self.locals[expr] = depth
 
+    def visit_class_stmt(self, stmt):
+        """Execute a class declaration statement."""
+        # Create the class object
+        klass = LoxClass(stmt.name.lexeme)
+        
+        # Define the class in the current environment
+        self.environment.define(stmt.name.lexeme, klass)
+        
+        return None
+
 # 2. LoxFunction class for runtime function objects
 class LoxFunction(LoxCallable):
     """A user-defined function."""
@@ -1414,6 +1434,35 @@ class NativeFunction(LoxCallable):
         
     def __str__(self):
         return "<native fn>"
+
+# Add after NativeFunction class (around line 1400)
+class LoxClass(LoxCallable):
+    """Runtime representation of a Lox class."""
+    
+    def __init__(self, name):
+        self.name = name
+    
+    def call(self, interpreter, arguments):
+        # Create a new instance of this class
+        instance = LoxInstance(self)
+        return instance
+    
+    def arity(self):
+        # Class constructors don't take arguments yet
+        return 0
+    
+    def __str__(self):
+        return self.name
+
+class LoxInstance:
+    """Instance of a Lox class."""
+    
+    def __init__(self, klass):
+        self.klass = klass
+        self.fields = {}
+    
+    def __str__(self):
+        return f"{self.klass.name} instance"
 
 # Add these enums for tracking function and class context
 class FunctionType(Enum):
@@ -1588,6 +1637,18 @@ class Resolver:
         """Report a resolution error."""
         self.had_error = True
         print(f"[line {token.line}] Error at '{token.lexeme}': {message}", file=sys.stderr)
+
+    # Add to the Resolver class
+    def visit_class_stmt(self, stmt):
+        """Resolve a class declaration."""
+        self.declare(stmt.name)
+        self.define(stmt.name)
+        
+        # Resolve method bodies
+        for method in stmt.methods:
+            self.resolve_function(method, FunctionType.FUNCTION)
+        
+        return None
 
 # Update main function to support the 'run' command
 def main():
