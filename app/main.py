@@ -158,7 +158,19 @@ class Parser:
     
     def expression(self):
         """Parse an expression."""
-        return self.factor()
+        return self.term()
+    
+    def term(self):
+        """Parse a term (addition and subtraction)."""
+        expr = self.factor()
+        
+        # Look for + or - operators
+        while self.match(TokenType.PLUS, TokenType.MINUS):
+            operator = self.previous()  # Get the operator token
+            right = self.factor()  # Parse the right operand
+            expr = Binary(expr, operator, right)  # Create a binary expression
+        
+        return expr
     
     def factor(self):
         """Parse a factor (multiplication and division)."""
