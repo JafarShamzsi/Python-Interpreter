@@ -552,7 +552,23 @@ class Interpreter:
         right = self.evaluate(expr.right)
         
         # Handle different binary operators
-        if expr.operator.token_type == TokenType.STAR:
+        if expr.operator.token_type == TokenType.GREATER:
+            # Greater than
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) > float(right)
+        elif expr.operator.token_type == TokenType.GREATER_EQUAL:
+            # Greater than or equal
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) >= float(right)
+        elif expr.operator.token_type == TokenType.LESS:
+            # Less than
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) < float(right)
+        elif expr.operator.token_type == TokenType.LESS_EQUAL:
+            # Less than or equal
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) <= float(right)
+        elif expr.operator.token_type == TokenType.STAR:
             # Multiplication
             self.check_number_operands(expr.operator, left, right)
             return float(left) * float(right)
