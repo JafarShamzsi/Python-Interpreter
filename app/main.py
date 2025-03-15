@@ -803,6 +803,9 @@ def main():
         # Print tokens in the required format
         for token in tokens:
             print(token)
+        # Only exit with error code after printing all valid tokens
+        if scanner.had_error:
+            exit(65)
     elif command == "parse":
         # Parse a single expression and print its AST representation
         parser = Parser(tokens)
