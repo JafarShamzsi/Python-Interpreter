@@ -635,7 +635,6 @@ class Parser:
             self.synchronize()  # Skip to next statement boundary
             return None
 
-    # Update the Parser's function method to handle parameters
     def function(self, kind):
         """Parse a function declaration."""
         # Get the function name
@@ -645,17 +644,18 @@ class Parser:
         self.consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
         parameters = []
         
-        # Handle parameters if there are any
+        # Parse parameter list
         if not self.check(TokenType.RIGHT_PAREN):
             # Parse first parameter
             parameters.append(self.consume(TokenType.IDENTIFIER, "Expect parameter name."))
             
-            # Parse additional parameters
+            # Parse additional parameters (comma-separated)
             while self.match(TokenType.COMMA):
                 if len(parameters) >= 255:
-                    self.error(self.peek(), "Can't have more than
+                    raise Exception("Can't have more than 255 parameters.")
+                
+                parameters.append(self.consume(TokenType.IDENTIFIER, "Expect parameter name."))
         
-        # No parameters supported yet
         self.consume(TokenType.RIGHT_PAREN, f"Expect ')' after parameters.")
         
         # Parse the function body
@@ -1251,6 +1251,10 @@ class LoxFunction(LoxCallable):
         # Create a new environment for the function execution
         environment = Environment(self.closure)
         
+        # Bind parameters to arguments
+        for i, parameter in enumerate(self.declaration.params):
+            environment.define(parameter.lexeme, arguments[i])
+        
         # Execute the function body in the new environment
         interpreter.execute_block(self.declaration.body, environment)
         
@@ -1258,8 +1262,8 @@ class LoxFunction(LoxCallable):
         return None
     
     def arity(self):
-        # For now, functions take no arguments
-        return 0
+        # Return the number of parameters
+        return len(self.declaration.params)
     
     def __str__(self):
         return f"<fn {self.declaration.name.lexeme}>"
