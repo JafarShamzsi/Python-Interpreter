@@ -1385,6 +1385,18 @@ class Environment:
             environment = environment.enclosing
         return environment
 
+    def assign(self, name, value):
+        """Set the value of an existing variable."""
+        if name.lexeme in self.values:
+            self.values[name.lexeme] = value
+            return value
+        
+        # If not found in this environment, try the enclosing one
+        if self.enclosing:
+            return self.enclosing.assign(name, value)
+            
+        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+
 import time
 
 # Implement native functions
