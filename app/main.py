@@ -1420,6 +1420,7 @@ class FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
 
+# Update the Resolver class to add error tracking
 class Resolver:
     """Performs static analysis on the AST to resolve variable bindings."""
     
@@ -1427,6 +1428,7 @@ class Resolver:
         self.interpreter = interpreter
         self.scopes = []  # Stack of scopes
         self.current_function = FunctionType.NONE
+        self.had_error = False  # Add this to track errors
     
     def resolve(self, statements_or_expr):
         """Resolve variable bindings in statements or expression."""
@@ -1518,9 +1520,13 @@ class Resolver:
         self.resolve(expr.right)
     
     def visit_variable_expr(self, expr):
+        """Check variable references."""
         # Check if we're trying to read a variable in its own initializer
-        if self.scopes and expr.name.lexeme in self.scopes[-1] and self.scopes[-1][expr.name.lexeme] is False:
-            print(f"Cannot read local variable {expr.name.lexeme} in its own initializer.", file=sys.stderr)
+        if (self.scopes and 
+            expr.name.lexeme in self.scopes[-1] and 
+            self.scopes[-1][expr.name.lexeme] is False):
+            # Replace print with error reporting
+            self.error(expr.name, "Can't read local variable in its own initializer.")
         
         self.resolve_local(expr, expr.name)
     
@@ -1569,6 +1575,11 @@ class Resolver:
     def visit_while_stmt(self, stmt):
         self.resolve(stmt.condition)
         self.resolve(stmt.body)
+    
+    def error(self, token, message):
+        """Report a resolution error."""
+        self.had_error = True
+        print(f"[line {token.line}] Error at '{token.lexeme}': {message}", file=sys.stderr)
 
 # Update main function to support the 'run' command
 def main():
@@ -1650,11 +1661,11 @@ def main():
         
         # Run the resolver
         resolver = Resolver(interpreter)
-        try:
-            resolver.resolve(statements)
-        except Exception as error:
-            print(f"Resolution error: {error}", file=sys.stderr)
-            exit(65)
+        resolver.resolve(statements)
+        
+        # Check for resolution errors
+        if resolver.had_error:
+            exit(65)  # Exit with code 65 for compile-time errors
         
         # Run the interpreter
         interpreter.interpret(statements)
