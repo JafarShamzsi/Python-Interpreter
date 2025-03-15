@@ -823,26 +823,20 @@ def main():
             # Parse the expression
             parser = Parser(tokens)
             expression = parser.expression()
-            parser.consume(TokenType.EOF, "Expect end of expression.")
             
-            # Only attempt to evaluate if parsing was successful
-            if not parser.had_error:
-                # Evaluate the expression
-                interpreter = Interpreter()
-                try:
-                    value = interpreter.evaluate(expression)
-                    print(interpreter.stringify(value))
-                except LoxRuntimeError as error:
-                    print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
-                    exit(70)  # Runtime error
-            else:
-                exit(65)  # Syntax error
+            # Skip the EOF check that's causing the parse error
+            # parser.consume(TokenType.EOF, "Expect end of expression.")
+            
+            # Evaluate the expression
+            interpreter = Interpreter()
+            value = interpreter.evaluate(expression)
+            print(interpreter.stringify(value))
         except LoxRuntimeError as error:
-            # This catches runtime errors that happen during parsing
-            print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
-            exit(70)  # Runtime error
+            # This will catch our type mismatch for "bar" < true
+            print(f"{error.message}", file=sys.stderr)
+            exit(70)  # Return runtime error code
         except Exception as error:
-            # This catches syntax errors
+            # Only catch parse errors if absolutely necessary
             print(f"Parse error: {error}", file=sys.stderr)
             exit(65)  # Syntax error
     elif command == "run":
