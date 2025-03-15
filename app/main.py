@@ -149,6 +149,26 @@ class Call(Expr):
     def accept(self, visitor):
         return visitor.visit_call_expr(self)
 
+# Add after other expression classes (around line 120)
+class Get(Expr):
+    """Property access expression."""
+    def __init__(self, object, name):
+        self.object = object    # Expression for the object
+        self.name = name        # Token for the property name
+    
+    def accept(self, visitor):
+        return visitor.visit_get_expr(self)
+
+class Set(Expr):
+    """Property assignment expression."""
+    def __init__(self, object, name, value):
+        self.object = object    # Expression for the object
+        self.name = name        # Token for the property name
+        self.value = value      # Expression for the value
+    
+    def accept(self, visitor):
+        return visitor.visit_set_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -455,19 +475,20 @@ class Parser:
 
     def assignment(self):
         """Parse an assignment expression."""
-        expr = self.logic_or()  # Changed from self.equality()
+        expr = self.logic_or()
         
         if self.match(TokenType.EQUAL):
             equals = self.previous()
-            # Recursively parse the right side (for right associativity)
             value = self.assignment()
             
-            # If the left side is a variable, create an assignment
             if isinstance(expr, Variable):
                 name = expr.name
                 return Assign(name, value)
+            elif isinstance(expr, Get):
+                # Property assignment: obj.prop = value
+                return Set(expr.object, expr.name, value)
             
-            # Otherwise, it's an invalid assignment target
+            # Invalid assignment target
             raise Exception("Invalid assignment target.")
         
         return expr
@@ -556,12 +577,15 @@ class Parser:
         return self.call()  # Changed from self.primary()
 
     def call(self):
-        """Parse a function call."""
+        """Parse a function call or property access."""
         expr = self.primary()
         
         while True:
             if self.match(TokenType.LEFT_PAREN):
                 expr = self.finish_call(expr)
+            elif self.match(TokenType.DOT):
+                name = self.consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
+                expr = Get(expr, name)
             else:
                 break
         
@@ -1333,6 +1357,26 @@ class Interpreter:
         
         return None
 
+    # Add to the Interpreter class
+    def visit_get_expr(self, expr):
+        """Evaluate a property access expression."""
+        object = self.evaluate(expr.object)
+        
+        if isinstance(object, LoxInstance):
+            return object.get(expr.name)
+        
+        raise LoxRuntimeError(expr.name, "Only instances have properties.")
+
+    def visit_set_expr(self, expr):
+        """Evaluate a property assignment expression."""
+        object = self.evaluate(expr.object)
+        
+        if not isinstance(object, LoxInstance):
+            raise LoxRuntimeError(expr.name, "Only instances have properties.")
+        
+        value = self.evaluate(expr.value)
+        return object.set(expr.name, value)
+
 # 2. LoxFunction class for runtime function objects
 class LoxFunction(LoxCallable):
     """A user-defined function."""
@@ -1472,12 +1516,26 @@ class LoxClass(LoxCallable):
     def __str__(self):
         return self.name
 
+# Update LoxInstance class
 class LoxInstance:
     """Instance of a Lox class."""
     
     def __init__(self, klass):
         self.klass = klass
         self.fields = {}
+    
+    def get(self, name):
+        """Get a property value."""
+        if name.lexeme in self.fields:
+            return self.fields[name.lexeme]
+        
+        # Property not found
+        raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+    
+    def set(self, name, value):
+        """Set a property value."""
+        self.fields[name.lexeme] = value
+        return value
     
     def __str__(self):
         return f"{self.klass.name} instance"
@@ -1667,6 +1725,18 @@ class Resolver:
             self.resolve_function(method, FunctionType.FUNCTION)
         
         return None
+
+    # Add to the Resolver class
+    def visit_get_expr(self, expr):
+        """Resolve a property access expression."""
+        self.resolve(expr.object)
+        # No need to resolve the property name - it's looked up at runtime
+    
+    def visit_set_expr(self, expr):
+        """Resolve a property assignment expression."""
+        self.resolve(expr.value)
+        self.resolve(expr.object)
+        # No need to resolve the property name - it's looked up at runtime
 
 # Update main function to support the 'run' command
 def main():
