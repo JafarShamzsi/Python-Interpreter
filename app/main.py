@@ -897,6 +897,17 @@ class Scanner:
         """Check if we've reached the end of the source."""
         return self.current >= len(self.source)
 
+# Add a callable interface
+class LoxCallable:
+    """Interface for callable objects in Lox."""
+    def call(self, interpreter, arguments):
+        """Call the function with the given arguments."""
+        pass
+
+    def arity(self):
+        """Return the number of arguments this function expects."""
+        pass
+
 # Update the Interpreter to handle statements
 class Interpreter:
     """Evaluates expressions and executes statements."""
@@ -1228,8 +1239,6 @@ class LoxFunction(LoxCallable):
         # Create a new environment for the function execution
         environment = Environment(self.closure)
         
-        # Parameters would be defined here (none for now)
-        
         # Execute the function body in the new environment
         interpreter.execute_block(self.declaration.body, environment)
         
@@ -1279,17 +1288,6 @@ class Environment:
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
 
 import time
-
-# Add a callable interface
-class LoxCallable:
-    """Interface for callable objects in Lox."""
-    def call(self, interpreter, arguments):
-        """Call the function with the given arguments."""
-        pass
-
-    def arity(self):
-        """Return the number of arguments this function expects."""
-        pass
 
 # Implement native functions
 class NativeFunction(LoxCallable):
