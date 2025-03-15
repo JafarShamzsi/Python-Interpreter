@@ -157,6 +157,15 @@ class Var(Stmt):
     def accept(self, visitor):
         return visitor.visit_var_stmt(self)
 
+# 1. Add Block statement class
+class Block(Stmt):
+    """Block statement containing a list of statements."""
+    def __init__(self, statements):
+        self.statements = statements  # List of statements
+    
+    def accept(self, visitor):
+        return visitor.visit_block_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -241,7 +250,20 @@ class Parser:
         if self.match(TokenType.PRINT):
             return self.print_statement()
         
+        if self.match(TokenType.LEFT_BRACE):
+            return Block(self.block())
+        
         return self.expression_statement()
+
+    def block(self):
+        """Parse a block of statements."""
+        statements = []
+        
+        while not self.check(TokenType.RIGHT_BRACE) and not self.is_at_end():
+            statements.append(self.declaration())
+        
+        self.consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+        return statements
     
     def print_statement(self):
         """Parse a print statement."""
@@ -863,6 +885,12 @@ class Interpreter:
             return text
         # For strings and other types
         return str(value)
+
+    def visit_block_stmt(self, stmt):
+        """Execute a block statement."""
+        for statement in stmt.statements:
+            self.execute(statement)
+        return None
 
 # Add Environment class
 class Environment:
