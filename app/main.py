@@ -181,8 +181,33 @@ class Parser:
         """Parse tokens into a list of statements."""
         statements = []
         while not self.is_at_end():
-            statements.append(self.statement())
+            try:
+                statements.append(self.statement())
+            except Exception as error:
+                # Report parser error and synchronize
+                self.had_error = True
+                print(f"Parse error: {error}", file=sys.stderr)
+                self.synchronize()  # Skip to next statement boundary
         return statements
+    
+    def synchronize(self):
+        """Recover from a parsing error by skipping tokens until next statement."""
+        self.advance()  # Consume the erroneous token
+        
+        while not self.is_at_end():
+            # If we reach a statement boundary, return
+            if self.previous().token_type == TokenType.SEMICOLON:
+                return
+            
+            # Look for tokens that might start a new statement
+            if self.peek().token_type in [
+                TokenType.CLASS, TokenType.FUN, TokenType.VAR, 
+                TokenType.FOR, TokenType.IF, TokenType.WHILE,
+                TokenType.PRINT, TokenType.RETURN
+            ]:
+                return
+            
+            self.advance()
     
     def statement(self):
         """Parse a statement."""
