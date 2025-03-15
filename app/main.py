@@ -657,6 +657,8 @@ class Parser:
     def declaration(self):
         """Parse a declaration."""
         try:
+            if self.match(TokenType.CLASS):
+                return self.class_declaration()
             if self.match(TokenType.FUN):
                 return self.function("function")
             if self.match(TokenType.VAR):
@@ -669,6 +671,22 @@ class Parser:
             print(f"Parse error: {error}", file=sys.stderr)
             self.synchronize()  # Skip to next statement boundary
             return None
+
+    # Add this method to the Parser class
+    def class_declaration(self):
+        """Parse a class declaration."""
+        name = self.consume(TokenType.IDENTIFIER, "Expect class name.")
+        
+        # Consume the opening brace
+        self.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
+        
+        methods = []
+        while not self.check(TokenType.RIGHT_BRACE) and not self.is_at_end():
+            methods.append(self.function("method"))
+        
+        self.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+        
+        return Class(name, methods)
 
     def function(self, kind):
         """Parse a function declaration."""
