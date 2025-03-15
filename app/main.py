@@ -635,14 +635,26 @@ class Parser:
             self.synchronize()  # Skip to next statement boundary
             return None
 
+    # Update the Parser's function method to handle parameters
     def function(self, kind):
         """Parse a function declaration."""
         # Get the function name
         name = self.consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
         
-        # Parse parameters (none for now, but we'll still expect parens)
+        # Parse parameters
         self.consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
-        params = []
+        parameters = []
+        
+        # Handle parameters if there are any
+        if not self.check(TokenType.RIGHT_PAREN):
+            # Parse first parameter
+            parameters.append(self.consume(TokenType.IDENTIFIER, "Expect parameter name."))
+            
+            # Parse additional parameters
+            while self.match(TokenType.COMMA):
+                if len(parameters) >= 255:
+                    self.error(self.peek(), "Can't have more than
+        
         # No parameters supported yet
         self.consume(TokenType.RIGHT_PAREN, f"Expect ')' after parameters.")
         
@@ -650,7 +662,7 @@ class Parser:
         self.consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
         body = self.block()
         
-        return Function(name, params, body)
+        return Function(name, parameters, body)
 
     def var_declaration(self):
         """Parse a variable declaration."""
