@@ -1,6 +1,14 @@
 import sys
 from enum import Enum
 
+# Add a custom runtime error class
+class LoxRuntimeError(Exception):
+    """Runtime error in Lox code."""
+    def __init__(self, token, message):
+        self.token = token  # The token that caused the error
+        self.message = message
+        super().__init__(self.message)
+
 class TokenType(Enum):
     # Single-character tokens
     LEFT_PAREN = "LEFT_PAREN"
@@ -51,11 +59,13 @@ class TokenType(Enum):
     # End of file
     EOF = "EOF"
 
+# Update the Token class to include line information
 class Token:
-    def __init__(self, token_type, lexeme, literal=None):
+    def __init__(self, token_type, lexeme, literal=None, line=1):
         self.token_type = token_type
         self.lexeme = lexeme
         self.literal = literal
+        self.line = line  # Add line number
     
     def __str__(self):
         return f"{self.token_type.value} {self.lexeme} {self.literal if self.literal is not None else 'null'}"
@@ -321,7 +331,7 @@ class Scanner:
             self.scan_token()
         
         # Add EOF token at the end
-        self.tokens.append(Token(TokenType.EOF, "", None))
+        self.tokens.append(Token(TokenType.EOF, "", None, self.line))
         return self.tokens
     
     def scan_token(self):
@@ -488,10 +498,11 @@ class Scanner:
         print(f"[line {self.line}] Error: Unexpected character: {character}", file=sys.stderr)
         self.had_error = True
     
+    # Update the Scanner's add_token method to include the line number
     def add_token(self, token_type, literal=None):
         """Add a token to the list."""
         lexeme = self.source[self.start:self.current]
-        self.tokens.append(Token(token_type, lexeme, literal))
+        self.tokens.append(Token(token_type, lexeme, literal, self.line))
     
     def advance(self):
         """Consume the next character and return it."""
@@ -502,18 +513,22 @@ class Scanner:
         """Check if we've reached the end of the source."""
         return self.current >= len(self.source)
 
-# Interpreter for evaluating expressions
+# Update the Interpreter class
 class Interpreter:
     """Evaluates expressions and returns their values."""
+    
+    def __init__(self):
+        self.had_runtime_error = False
     
     def interpret(self, expr):
         """Interpret an expression and return its value."""
         try:
             value = self.evaluate(expr)
             return self.stringify(value)
-        except Exception as error:
-            # Handle runtime errors here
-            print(f"Runtime Error: {error}", file=sys.stderr)
+        except LoxRuntimeError as error:
+            # Handle runtime errors
+            self.had_runtime_error = True
+            print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
             return None
     
     def evaluate(self, expr):
@@ -622,7 +637,7 @@ class Interpreter:
         """Verify that both operands are numbers."""
         if isinstance(left, (int, float)) and isinstance(right, (int, float)):
             return
-        raise Exception(f"Operands must be numbers.")
+        raise LoxRuntimeError(operator, "Operands must be numbers.")
     
     def is_truthy(self, value):
         """
@@ -641,7 +656,7 @@ class Interpreter:
         """Verify that an operand is a number."""
         if isinstance(operand, (int, float)):
             return
-        raise Exception(f"Operand must be a number.")
+        raise LoxRuntimeError(operator, "Operand must be a number.")
     
     def stringify(self, value):
         """Convert a value to its string representation."""
