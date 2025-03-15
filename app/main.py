@@ -127,6 +127,17 @@ class Assign(Expr):
     def accept(self, visitor):
         return visitor.visit_assign_expr(self)
 
+# 1. Add Logical expression class
+class Logical(Expr):
+    """Logical expression with two operands and a logical operator."""
+    def __init__(self, left, operator, right):
+        self.left = left        # Left expression
+        self.operator = operator  # Token (OR or AND)
+        self.right = right      # Right expression
+    
+    def accept(self, visitor):
+        return visitor.visit_logical_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -319,7 +330,7 @@ class Parser:
 
     def assignment(self):
         """Parse an assignment expression."""
-        expr = self.equality()  # Parse the left side as normal
+        expr = self.logic_or()  # Changed from self.equality()
         
         if self.match(TokenType.EQUAL):
             equals = self.previous()
@@ -333,6 +344,17 @@ class Parser:
             
             # Otherwise, it's an invalid assignment target
             raise Exception("Invalid assignment target.")
+        
+        return expr
+
+    def logic_or(self):
+        """Parse a logical OR expression."""
+        expr = self.equality()  # We'll implement AND in a future stage
+        
+        while self.match(TokenType.OR):
+            operator = self.previous()
+            right = self.equality()
+            expr = Logical(expr, operator, right)
         
         return expr
     
@@ -957,6 +979,20 @@ class Interpreter:
             self.execute(stmt.else_branch)
         
         return None
+
+    # 3. Add interpreter method for logical expressions
+    def visit_logical_expr(self, expr):
+        """Evaluate a logical expression."""
+        left = self.evaluate(expr.left)
+        
+        # Short-circuit evaluation for OR
+        if expr.operator.token_type == TokenType.OR:
+            # If left side is truthy, return it without evaluating right side
+            if self.is_truthy(left):
+                return left
+        
+        # Otherwise, evaluate and return right side
+        return self.evaluate(expr.right)
 
 # Update the Environment class to support nesting
 class Environment:
