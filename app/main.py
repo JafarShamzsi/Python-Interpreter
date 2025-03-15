@@ -552,7 +552,13 @@ class Interpreter:
         right = self.evaluate(expr.right)
         
         # Handle different binary operators
-        if expr.operator.token_type == TokenType.GREATER:
+        if expr.operator.token_type == TokenType.EQUAL_EQUAL:
+            # Equality
+            return self.is_equal(left, right)
+        elif expr.operator.token_type == TokenType.BANG_EQUAL:
+            # Inequality
+            return not self.is_equal(left, right)
+        elif expr.operator.token_type == TokenType.GREATER:
             # Greater than
             self.check_number_operands(expr.operator, left, right)
             return float(left) > float(right)
@@ -596,6 +602,21 @@ class Interpreter:
         
         # Placeholder for other binary operators to be implemented later
         raise NotImplementedError(f"Binary operator {expr.operator.lexeme} not yet implemented")
+
+    def is_equal(self, a, b):
+        """Check if two values are equal according to Lox rules."""
+        # nil is only equal to nil
+        if a is None and b is None:
+            return True
+        if a is None:
+            return False
+        
+        # In Lox, values of different types are never equal
+        if type(a) != type(b):
+            return False
+        
+        # Compare the values
+        return a == b
 
     def check_number_operands(self, operator, left, right):
         """Verify that both operands are numbers."""
