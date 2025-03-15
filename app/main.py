@@ -158,7 +158,20 @@ class Parser:
     
     def expression(self):
         """Parse an expression."""
-        return self.term()
+        return self.comparison()
+    
+    def comparison(self):
+        """Parse a comparison (>, <, >=, <=)."""
+        expr = self.term()
+        
+        # Look for comparison operators
+        while self.match(TokenType.GREATER, TokenType.GREATER_EQUAL, 
+                         TokenType.LESS, TokenType.LESS_EQUAL):
+            operator = self.previous()  # Get the operator token
+            right = self.term()  # Parse the right operand
+            expr = Binary(expr, operator, right)  # Create a binary expression
+        
+        return expr
     
     def term(self):
         """Parse a term (addition and subtraction)."""
