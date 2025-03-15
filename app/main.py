@@ -279,6 +279,9 @@ class Parser:
     
     def statement(self):
         """Parse a statement."""
+        if self.match(TokenType.FOR):
+            return self.for_statement()
+        
         if self.match(TokenType.IF):
             return self.if_statement()
         
@@ -292,6 +295,58 @@ class Parser:
             return Block(self.block())
         
         return self.expression_statement()
+
+    def for_statement(self):
+        """Parse a for statement by desugaring it to a while loop."""
+        # Consume the opening parenthesis
+        self.consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+        
+        # Parse initializer
+        initializer = None
+        if self.match(TokenType.SEMICOLON):
+            # No initializer
+            initializer = None
+        elif self.match(TokenType.VAR):
+            # Variable declaration initializer
+            initializer = self.var_declaration()
+        else:
+            # Expression initializer
+            initializer = self.expression_statement()
+        
+        # Parse condition
+        condition = None
+        if not self.check(TokenType.SEMICOLON):
+            condition = self.expression()
+        self.consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
+        
+        # Parse increment
+        increment = None
+        if not self.check(TokenType.RIGHT_PAREN):
+            increment = self.expression()
+        self.consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
+        
+        # Parse body
+        body = self.statement()
+        
+        # Transform the for loop into a while loop
+        
+        # If there's an increment, append it to the body
+        if increment is not None:
+            # Create a block containing the original body and the increment expression
+            body = Block([body, Expression(increment)])
+        
+        # If condition was omitted, use true as default (infinite loop)
+        if condition is None:
+            condition = Literal(True)
+        
+        # Create the while loop
+        body = While(condition, body)
+        
+        # If there's an initializer, execute it before the while loop
+        if initializer is not None:
+            body = Block([initializer, body])
+        
+        return body
 
     def if_statement(self):
         """Parse an if statement."""
