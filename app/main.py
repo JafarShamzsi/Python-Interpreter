@@ -561,7 +561,16 @@ class Interpreter:
             self.check_number_operands(expr.operator, left, right)
             return float(left) / float(right)
         elif expr.operator.token_type == TokenType.PLUS:
-            # Addition
+            # Addition or string concatenation
+            if isinstance(left, str) and isinstance(right, str):
+                # String concatenation
+                return left + right
+            
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                # Numeric addition
+                return float(left) + float(right)
+            
+            # For now, we'll assume no error cases as per the stage description
             self.check_number_operands(expr.operator, left, right)
             return float(left) + float(right)
         elif expr.operator.token_type == TokenType.MINUS:
