@@ -638,6 +638,10 @@ class Interpreter:
 
     def check_number_operands(self, operator, left, right):
         """Verify that both operands are numbers."""
+        # Explicitly reject booleans
+        if isinstance(left, bool) or isinstance(right, bool):
+            raise LoxRuntimeError(operator, "Operands must be numbers.")
+        # Then check if they're numbers
         if isinstance(left, (int, float)) and isinstance(right, (int, float)):
             return
         raise LoxRuntimeError(operator, "Operands must be numbers.")
@@ -657,6 +661,10 @@ class Interpreter:
     
     def check_number_operand(self, operator, operand):
         """Verify that an operand is a number."""
+        # Explicitly reject booleans
+        if isinstance(operand, bool):
+            raise LoxRuntimeError(operator, "Operand must be a number.")
+        # Then check if it's a number
         if isinstance(operand, (int, float)):
             return
         raise LoxRuntimeError(operator, "Operand must be a number.")
