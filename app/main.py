@@ -199,7 +199,7 @@ class Parser:
         statements = []
         while not self.is_at_end():
             try:
-                statements.append(self.statement())
+                statements.append(self.declaration())
             except Exception as error:
                 # Report parser error and synchronize
                 self.had_error = True
@@ -373,6 +373,25 @@ class Parser:
             return self.advance()
         
         raise Exception(message)
+
+    def declaration(self):
+        """Parse a declaration."""
+        if self.match(TokenType.VAR):
+            return self.var_declaration()
+        
+        return self.statement()
+
+    def var_declaration(self):
+        """Parse a variable declaration."""
+        name = self.consume(TokenType.IDENTIFIER, "Expect variable name.")
+        
+        # Check for initializer
+        initializer = None
+        if self.match(TokenType.EQUAL):
+            initializer = self.expression()
+        
+        self.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
+        return Var(name, initializer)
 
 class Scanner:
     def __init__(self, source):
