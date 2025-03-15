@@ -680,9 +680,33 @@ class Interpreter:
                 raise LoxRuntimeError(expr.operator, "Operands must be numbers of the same type.")
             self.check_number_operands(expr.operator, left, right)
             return float(left) <= float(right)
+        elif expr.operator.token_type == TokenType.PLUS:
+            # Addition or string concatenation
+            if isinstance(left, str) and isinstance(right, str):
+                # String concatenation
+                return left + right
+            
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                # Numeric addition
+                return float(left) + float(right)
+            
+            # For now, we'll assume no error cases as per previous stage descriptions
+            raise LoxRuntimeError(expr.operator, "Operands must be two numbers or two strings.")
+        elif expr.operator.token_type == TokenType.MINUS:
+            # Subtraction
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) - float(right)
+        elif expr.operator.token_type == TokenType.STAR:
+            # Multiplication
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) * float(right)
+        elif expr.operator.token_type == TokenType.SLASH:
+            # Division
+            self.check_number_operands(expr.operator, left, right)
+            return float(left) / float(right)
         
-        # Placeholder for other binary operators to be implemented later
-        raise NotImplementedError(f"Binary operator {expr.operator.lexeme} not yet implemented")
+        # Should never reach here
+        raise LoxRuntimeError(expr.operator, f"Unknown operator: {expr.operator.lexeme}")
 
     def is_equal(self, a, b):
         """Check if two values are equal according to Lox rules."""
