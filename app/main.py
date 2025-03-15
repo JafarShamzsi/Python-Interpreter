@@ -188,6 +188,16 @@ class If(Stmt):
     def accept(self, visitor):
         return visitor.visit_if_stmt(self)
 
+# Add While statement class
+class While(Stmt):
+    """While loop statement."""
+    def __init__(self, condition, body):
+        self.condition = condition  # Expression to evaluate before each iteration
+        self.body = body  # Statement to execute in each iteration
+    
+    def accept(self, visitor):
+        return visitor.visit_while_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -274,6 +284,9 @@ class Parser:
         
         if self.match(TokenType.PRINT):
             return self.print_statement()
+        
+        if self.match(TokenType.WHILE):
+            return self.while_statement()
         
         if self.match(TokenType.LEFT_BRACE):
             return Block(self.block())
@@ -519,6 +532,22 @@ class Parser:
         
         self.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
         return Var(name, initializer)
+
+    def while_statement(self):
+        """Parse a while statement."""
+        # Consume the opening parenthesis after 'while'
+        self.consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+        
+        # Parse the condition expression
+        condition = self.expression()
+        
+        # Consume the closing parenthesis
+        self.consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
+        
+        # Parse the body statement
+        body = self.statement()
+        
+        return While(condition, body)
 
 class Scanner:
     def __init__(self, source):
@@ -1011,6 +1040,14 @@ class Interpreter:
         # For OR: if left side is falsy, evaluate and return right side
         # For AND: if left side is truthy, evaluate and return right side
         return self.evaluate(expr.right)
+
+    def visit_while_stmt(self, stmt):
+        """Execute a while statement."""
+        # Keep executing the body as long as the condition is truthy
+        while self.is_truthy(self.evaluate(stmt.condition)):
+            self.execute(stmt.body)
+        
+        return None
 
 # Update the Environment class to support nesting
 class Environment:
