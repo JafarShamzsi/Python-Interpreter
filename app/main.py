@@ -169,6 +169,15 @@ class Set(Expr):
     def accept(self, visitor):
         return visitor.visit_set_expr(self)
 
+# Add this class with the other expression classes (near line 120)
+class This(Expr):
+    """This expression."""
+    def __init__(self, keyword):
+        self.keyword = keyword  # Token for 'this'
+    
+    def accept(self, visitor):
+        return visitor.visit_this_expr(self)
+
 # AST classes for statements
 class Stmt:
     """Base class for all statements."""
@@ -206,7 +215,7 @@ class Block(Stmt):
         self.statements = statements  # List of statements
     
     def accept(self, visitor):
-        return visitor.visit_block_stmt(self)
+        return self.visit_block_stmt(self)
 
 # Add If statement class
 class If(Stmt):
@@ -607,6 +616,7 @@ class Parser:
         
         return Call(callee, paren, arguments)
 
+    # Update the primary method in Parser to recognize 'this'
     def primary(self):
         """Parse a primary expression."""
         if self.match(TokenType.FALSE):
@@ -615,6 +625,9 @@ class Parser:
             return Literal(True)
         if self.match(TokenType.NIL):
             return Literal(None)
+        
+        if self.match(TokenType.THIS):
+            return This(self.previous())
         
         if self.match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self.previous().literal)
@@ -1384,6 +1397,11 @@ class Interpreter:
         value = self.evaluate(expr.value)
         return object.set(expr.name, value)
 
+    # Add this method to the Interpreter
+    def visit_this_expr(self, expr):
+        """Evaluate a 'this' expression."""
+        return self.lookup_variable(expr.keyword, expr)
+
 # 2. LoxFunction class for runtime function objects
 class LoxFunction(LoxCallable):
     """A user-defined function."""
@@ -1426,7 +1444,25 @@ class LoxMethod(LoxCallable):
         self.method = method      # The LoxFunction for this method
     
     def call(self, interpreter, arguments):
-        return self.method.call(interpreter, arguments)
+        """Call the method with the given arguments."""
+        # Create a new environment with the method's closure
+        environment = Environment(self.method.closure)
+        
+        # Bind 'this' to the instance
+        environment.define("this", self.instance)
+        
+        # Bind parameters to arguments
+        for i, parameter in enumerate(self.method.declaration.params):
+            environment.define(parameter.lexeme, arguments[i])
+        
+        try:
+            # Execute the method body
+            interpreter.execute_block(self.method.declaration.body, environment)
+        except ReturnException as return_value:
+            return return_value.value
+        
+        # Methods without explicit returns return nil
+        return None
     
     def arity(self):
         return self.method.arity()
@@ -1580,6 +1616,7 @@ class LoxInstance:
 class FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
+    METHOD = 2  # Add method type
 
 # Update the Resolver class to add error tracking
 class Resolver:
@@ -1756,9 +1793,10 @@ class Resolver:
         self.declare(stmt.name)
         self.define(stmt.name)
         
-        # Resolve method bodies
+        # Resolve method bodies with METHOD type
         for method in stmt.methods:
-            self.resolve_function(method, FunctionType.FUNCTION)
+            function_type = FunctionType.METHOD
+            self.resolve_function(method, function_type)
         
         return None
 
@@ -1773,6 +1811,14 @@ class Resolver:
         self.resolve(expr.value)
         self.resolve(expr.object)
         # No need to resolve the property name - it's looked up at runtime
+
+    # Add this method to the Resolver class
+    def visit_this_expr(self, expr):
+        """Resolve a 'this' expression."""
+        if self.current_function != FunctionType.METHOD:
+            self.error(expr.keyword, "Can't use 'this' outside of a method.")
+        else:
+            self.resolve_local(expr, expr.keyword)
 
 # Update main function to support the 'run' command
 def main():
