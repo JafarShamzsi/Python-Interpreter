@@ -158,7 +158,19 @@ class Parser:
     
     def expression(self):
         """Parse an expression."""
-        return self.unary()
+        return self.factor()
+    
+    def factor(self):
+        """Parse a factor (multiplication and division)."""
+        expr = self.unary()
+        
+        # Look for * or / operators
+        while self.match(TokenType.STAR, TokenType.SLASH):
+            operator = self.previous()  # Get the operator token
+            right = self.unary()  # Parse the right operand
+            expr = Binary(expr, operator, right)  # Create a binary expression
+        
+        return expr
     
     def unary(self):
         """Parse a unary expression."""
