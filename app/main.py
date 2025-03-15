@@ -793,11 +793,7 @@ def main():
     # Scan tokens
     scanner = Scanner(file_contents)
     tokens = scanner.scan_tokens()
-    
-    # Exit early if there were lexical errors
-    if scanner.had_error:
-        exit(65)
-    
+
     # Handle different commands
     if command == "tokenize":
         # Print tokens in the required format
