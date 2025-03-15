@@ -802,28 +802,43 @@ def main():
     elif command == "parse":
         # Parse a single expression and print its AST representation
         parser = Parser(tokens)
-        expression = parser.expression()
-        parser.consume(TokenType.EOF, "Expect end of expression.")  # Fixed: Changed self.consume to parser.consume
-        if expression:
-            printer = AstPrinter()
-            print(printer.print(expression))
-        else:
-            print("Error: Failed to parse expression.", file=sys.stderr)
+        try:
+            expression = parser.expression()
+            parser.consume(TokenType.EOF, "Expect end of expression.")
+            if expression:
+                printer = AstPrinter()
+                print(printer.print(expression))
+            else:
+                print("Error: Failed to parse expression.", file=sys.stderr)
+                exit(65)
+        except Exception as error:
+            print(f"Parse error: {error}", file=sys.stderr)
             exit(65)
     elif command == "evaluate":
         # Parse and evaluate a single expression
         parser = Parser(tokens)
-        expression = parser.expression()
-        parser.consume(TokenType.EOF, "Expect end of expression.")  # Fixed: Changed self.consume to parser.consume
-        if expression:
+        try:
+            expression = parser.expression()
+            parser.consume(TokenType.EOF, "Expect end of expression.")
+            
+            # Evaluate the expression
             interpreter = Interpreter()
             result = interpreter.evaluate(expression)
+            
+            # Check for runtime errors
             if interpreter.had_runtime_error:
                 exit(70)  # Runtime error
-            if result is not None:
-                print(interpreter.stringify(result))
-        else:
-            print("Error: Failed to parse expression.", file=sys.stderr)
+                
+            # Print the result
+            print(interpreter.stringify(result))
+            
+        except LoxRuntimeError as error:
+            # Handle runtime errors
+            print(f"{error.message}\n[line {error.token.line}]", file=sys.stderr)
+            exit(70)  # Runtime error
+        except Exception as error:
+            # Handle parser errors
+            print(f"Parse error: {error}", file=sys.stderr)
             exit(65)
     elif command == "run":
         # Parse and execute a program
