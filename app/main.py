@@ -654,45 +654,32 @@ class Interpreter:
             return not self.is_equal(left, right)
         elif expr.operator.token_type == TokenType.GREATER:
             # Greater than
+            # Check if operands are numbers and have same type
+            if type(left) != type(right):
+                raise LoxRuntimeError(expr.operator, "Operands must be numbers of the same type.")
             self.check_number_operands(expr.operator, left, right)
             return float(left) > float(right)
         elif expr.operator.token_type == TokenType.GREATER_EQUAL:
             # Greater than or equal
+            # Check if operands are numbers and have same type
+            if type(left) != type(right):
+                raise LoxRuntimeError(expr.operator, "Operands must be numbers of the same type.")
             self.check_number_operands(expr.operator, left, right)
             return float(left) >= float(right)
         elif expr.operator.token_type == TokenType.LESS:
             # Less than
+            # Check if operands are numbers and have same type
+            if type(left) != type(right):
+                raise LoxRuntimeError(expr.operator, "Operands must be numbers of the same type.")
             self.check_number_operands(expr.operator, left, right)
             return float(left) < float(right)
         elif expr.operator.token_type == TokenType.LESS_EQUAL:
             # Less than or equal
+            # Check if operands are numbers and have same type
+            if type(left) != type(right):
+                raise LoxRuntimeError(expr.operator, "Operands must be numbers of the same type.")
             self.check_number_operands(expr.operator, left, right)
             return float(left) <= float(right)
-        elif expr.operator.token_type == TokenType.STAR:
-            # Multiplication
-            self.check_number_operands(expr.operator, left, right)
-            return float(left) * float(right)
-        elif expr.operator.token_type == TokenType.SLASH:
-            # Division
-            self.check_number_operands(expr.operator, left, right)
-            return float(left) / float(right)
-        elif expr.operator.token_type == TokenType.PLUS:
-            # Addition or string concatenation
-            if isinstance(left, str) and isinstance(right, str):
-                # String concatenation
-                return left + right
-            
-            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                # Numeric addition
-                return float(left) + float(right)
-            
-            # For now, we'll assume no error cases as per the stage description
-            self.check_number_operands(expr.operator, left, right)
-            return float(left) + float(right)
-        elif expr.operator.token_type == TokenType.MINUS:
-            # Subtraction
-            self.check_number_operands(expr.operator, left, right)
-            return float(left) - float(right)
         
         # Placeholder for other binary operators to be implemented later
         raise NotImplementedError(f"Binary operator {expr.operator.lexeme} not yet implemented")
@@ -792,7 +779,7 @@ def main():
         # Parse a single expression and print its AST representation
         parser = Parser(tokens)
         expression = parser.expression()
-        self.consume(TokenType.EOF, "Expect end of expression.")
+        parser.consume(TokenType.EOF, "Expect end of expression.")  # Fixed: Changed self.consume to parser.consume
         if expression:
             printer = AstPrinter()
             print(printer.print(expression))
@@ -803,13 +790,14 @@ def main():
         # Parse and evaluate a single expression
         parser = Parser(tokens)
         expression = parser.expression()
-        self.consume(TokenType.EOF, "Expect end of expression.")
+        parser.consume(TokenType.EOF, "Expect end of expression.")  # Fixed: Changed self.consume to parser.consume
         if expression:
             interpreter = Interpreter()
             result = interpreter.evaluate(expression)
             if interpreter.had_runtime_error:
                 exit(70)  # Runtime error
-            print(interpreter.stringify(result))
+            if result is not None:
+                print(interpreter.stringify(result))
         else:
             print("Error: Failed to parse expression.", file=sys.stderr)
             exit(65)
