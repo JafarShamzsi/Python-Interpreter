@@ -888,16 +888,33 @@ class Interpreter:
 
     def visit_block_stmt(self, stmt):
         """Execute a block statement."""
-        for statement in stmt.statements:
-            self.execute(statement)
+        # Execute the block with a new environment
+        self.execute_block(stmt.statements, Environment(self.environment))
         return None
 
-# Add Environment class
+    def execute_block(self, statements, environment):
+        """Execute a list of statements in the given environment."""
+        # Save the previous environment
+        previous = self.environment
+        
+        try:
+            # Update the current environment
+            self.environment = environment
+            
+            # Execute all statements in the block
+            for statement in statements:
+                self.execute(statement)
+        finally:
+            # Restore the previous environment when done
+            self.environment = previous
+
+# Update the Environment class to support nesting
 class Environment:
     """Environment for storing variable bindings."""
     
-    def __init__(self):
+    def __init__(self, enclosing=None):
         self.values = {}
+        self.enclosing = enclosing  # Reference to the outer environment
     
     def define(self, name, value):
         """Define a new variable with the given name and value."""
@@ -907,16 +924,23 @@ class Environment:
         """Get the value of a variable."""
         if name.lexeme in self.values:
             return self.values[name.lexeme]
+            
+        # If not found in this environment, look in the enclosing one
+        if self.enclosing:
+            return self.enclosing.get(name)
         
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
-
-    # 2. Update the Environment class with a set method
+    
     def set(self, name, value):
         """Set the value of an existing variable."""
         if name.lexeme in self.values:
             self.values[name.lexeme] = value
             return value
         
+        # If not found in this environment, try the enclosing one
+        if self.enclosing:
+            return self.enclosing.set(name, value)
+            
         raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
 
 # Update main function to support the 'run' command
