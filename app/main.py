@@ -220,6 +220,16 @@ class Function(Stmt):
     def accept(self, visitor):
         return visitor.visit_function_stmt(self)
 
+# Add Return statement class
+class Return(Stmt):
+    """Return statement."""
+    def __init__(self, keyword, value=None):
+        self.keyword = keyword  # Token for 'return'
+        self.value = value      # Expression for return value (or None)
+    
+    def accept(self, visitor):
+        return visitor.visit_return_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -310,6 +320,9 @@ class Parser:
         if self.match(TokenType.PRINT):
             return self.print_statement()
         
+        if self.match(TokenType.RETURN):
+            return self.return_statement()
+        
         if self.match(TokenType.WHILE):
             return self.while_statement()
         
@@ -317,6 +330,18 @@ class Parser:
             return Block(self.block())
         
         return self.expression_statement()
+
+    def return_statement(self):
+        """Parse a return statement."""
+        keyword = self.previous()  # The 'return' token
+        
+        # Check for return value
+        value = None
+        if not self.check(TokenType.SEMICOLON):
+            value = self.expression()
+        
+        self.consume(TokenType.SEMICOLON, "Expect ';' after return value.")
+        return Return(keyword, value)
 
     def for_statement(self):
         """Parse a for statement by desugaring it to a while loop."""
@@ -1239,6 +1264,15 @@ class Interpreter:
         
         return None
 
+    def visit_return_stmt(self, stmt):
+        """Execute a return statement."""
+        value = None
+        if stmt.value is not None:
+            value = self.evaluate(stmt.value)
+        
+        # Using an exception for control flow to return early from nested calls
+        raise ReturnException(value)
+
 # 2. LoxFunction class for runtime function objects
 class LoxFunction(LoxCallable):
     """A user-defined function."""
@@ -1255,8 +1289,12 @@ class LoxFunction(LoxCallable):
         for i, parameter in enumerate(self.declaration.params):
             environment.define(parameter.lexeme, arguments[i])
         
-        # Execute the function body in the new environment
-        interpreter.execute_block(self.declaration.body, environment)
+        try:
+            # Execute the function body in the new environment
+            interpreter.execute_block(self.declaration.body, environment)
+        except ReturnException as return_value:
+            # Return the value from the return statement
+            return return_value.value
         
         # Functions without explicit returns return nil
         return None
@@ -1267,6 +1305,13 @@ class LoxFunction(LoxCallable):
     
     def __str__(self):
         return f"<fn {self.declaration.name.lexeme}>"
+
+# Custom exception for handling return values
+class ReturnException(Exception):
+    """Exception for handling return values from functions."""
+    def __init__(self, value):
+        self.value = value
+        super().__init__(str(value))
 
 # Update the Environment class to support nesting
 class Environment:
