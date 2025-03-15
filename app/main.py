@@ -158,6 +158,17 @@ class Parser:
     
     def expression(self):
         """Parse an expression."""
+        return self.unary()
+    
+    def unary(self):
+        """Parse a unary expression."""
+        # Check for unary operators (! or -)
+        if self.match(TokenType.BANG, TokenType.MINUS):
+            operator = self.previous()  # Save the operator token
+            right = self.unary()  # Parse the operand (recursively)
+            return Unary(operator, right)
+        
+        # If no unary operator, parse as a primary expression
         return self.primary()
     
     def primary(self):
