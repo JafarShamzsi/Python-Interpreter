@@ -209,6 +209,17 @@ class While(Stmt):
     def accept(self, visitor):
         return visitor.visit_while_stmt(self)
 
+# 1. Add Function declaration statement class
+class Function(Stmt):
+    """Function declaration statement."""
+    def __init__(self, name, params, body):
+        self.name = name        # Token for function name
+        self.params = params    # List of tokens for parameter names
+        self.body = body        # List of statements for function body
+    
+    def accept(self, visitor):
+        return visitor.visit_function_stmt(self)
+
 # AST Printer for generating the output format
 class AstPrinter:
     """Prints an AST in a lisp-like format."""
@@ -610,10 +621,36 @@ class Parser:
 
     def declaration(self):
         """Parse a declaration."""
-        if self.match(TokenType.VAR):
-            return self.var_declaration()
+        try:
+            if self.match(TokenType.FUN):
+                return self.function("function")
+            if self.match(TokenType.VAR):
+                return self.var_declaration()
+            
+            return self.statement()
+        except Exception as error:
+            # Report parser error and synchronize
+            self.had_error = True
+            print(f"Parse error: {error}", file=sys.stderr)
+            self.synchronize()  # Skip to next statement boundary
+            return None
+
+    def function(self, kind):
+        """Parse a function declaration."""
+        # Get the function name
+        name = self.consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
         
-        return self.statement()
+        # Parse parameters (none for now, but we'll still expect parens)
+        self.consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
+        params = []
+        # No parameters supported yet
+        self.consume(TokenType.RIGHT_PAREN, f"Expect ')' after parameters.")
+        
+        # Parse the function body
+        self.consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
+        body = self.block()
+        
+        return Function(name, params, body)
 
     def var_declaration(self):
         """Parse a variable declaration."""
@@ -1168,6 +1205,43 @@ class Interpreter:
         
         # Call the function
         return callee.call(self, arguments)
+
+    def visit_function_stmt(self, stmt):
+        """Execute a function declaration statement."""
+        # Create a function object with the current environment as closure
+        function = LoxFunction(stmt, self.environment)
+        
+        # Define the function in the current environment
+        self.environment.define(stmt.name.lexeme, function)
+        
+        return None
+
+# 2. LoxFunction class for runtime function objects
+class LoxFunction(LoxCallable):
+    """A user-defined function."""
+    
+    def __init__(self, declaration, closure):
+        self.declaration = declaration  # Function declaration AST node
+        self.closure = closure          # Environment where function was defined
+    
+    def call(self, interpreter, arguments):
+        # Create a new environment for the function execution
+        environment = Environment(self.closure)
+        
+        # Parameters would be defined here (none for now)
+        
+        # Execute the function body in the new environment
+        interpreter.execute_block(self.declaration.body, environment)
+        
+        # Functions without explicit returns return nil
+        return None
+    
+    def arity(self):
+        # For now, functions take no arguments
+        return 0
+    
+    def __str__(self):
+        return f"<fn {self.declaration.name.lexeme}>"
 
 # Update the Environment class to support nesting
 class Environment:
