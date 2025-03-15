@@ -1403,101 +1403,6 @@ class NativeFunction(LoxCallable):
     def __str__(self):
         return "<native fn>"
 
-# Update main function to support the 'run' command
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: ./your_program.sh [tokenize|parse|evaluate|run] <filename>", file=sys.stderr)
-        exit(1)
-
-    command = sys.argv[1]
-    filename = sys.argv[2]
-
-    if command not in ["tokenize", "parse", "evaluate", "run"]:
-        print(f"Unknown command: {command}", file=sys.stderr)
-        exit(1)
-
-    with open(filename) as file:
-        file_contents = file.read()
-
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!", file=sys.stderr)
-
-    # Scan tokens
-    scanner = Scanner(file_contents)
-    tokens = scanner.scan_tokens()
-
-    # Handle different commands
-    if command == "tokenize":
-        # Print tokens in the required format
-        for token in tokens:
-            print(token)
-        # Only exit with error code after printing all valid tokens
-        if scanner.had_error:
-            exit(65)
-    elif command == "parse":
-        # Parse a single expression and print its AST representation
-        parser = Parser(tokens)
-        try:
-            expression = parser.expression()
-            # Don't check for EOF here - allow the expression to take up the entire input
-            # parser.consume(TokenType.EOF, "Expect end of expression.")
-            if expression:
-                printer = AstPrinter()
-                print(printer.print(expression))
-            else:
-                print("Error: Failed to parse expression.", file=sys.stderr)
-                exit(65)
-        except Exception as error:
-            print(f"Parse error: {error}", file=sys.stderr)
-            exit(65)
-    elif command == "evaluate":
-        try:
-            # Parse the expression
-            parser = Parser(tokens)
-            expression = parser.expression()
-            
-            # Skip the EOF check that's causing the parse error
-            # parser.consume(TokenType.EOF, "Expect end of expression.")
-            
-            # Evaluate the expression
-            interpreter = Interpreter()
-            value = interpreter.evaluate(expression)
-            print(interpreter.stringify(value))
-        except LoxRuntimeError as error:
-            # This will catch our type mismatch for "bar" < true
-            print(f"{error.message}", file=sys.stderr)
-            exit(70)  # Return runtime error code
-        except Exception as error:
-            # Only catch parse errors if absolutely necessary
-            print(f"Parse error: {error}", file=sys.stderr)
-            exit(65)  # Syntax error
-    elif command == "run":
-        # Parse and execute a program
-        parser = Parser(tokens)
-        statements = parser.parse()
-        if parser.had_error:
-            exit(65)  # Syntax error
-        
-        # Create the interpreter
-        interpreter = Interpreter()
-        
-        # Run the resolver
-        resolver = Resolver(interpreter)
-        try:
-            resolver.resolve(statements)
-        except Exception as error:
-            print(f"Resolution error: {error}", file=sys.stderr)
-            exit(65)
-        
-        # Run the interpreter
-        interpreter.interpret(statements)
-        if interpreter.had_runtime_error:
-            exit(70)  # Runtime error
-
-
-if __name__ == "__main__":
-    main()
-
 # Add these enums for tracking function and class context
 class FunctionType(Enum):
     NONE = 0
@@ -1652,3 +1557,98 @@ class Resolver:
     def visit_while_stmt(self, stmt):
         self.resolve(stmt.condition)
         self.resolve(stmt.body)
+
+# Update main function to support the 'run' command
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: ./your_program.sh [tokenize|parse|evaluate|run] <filename>", file=sys.stderr)
+        exit(1)
+
+    command = sys.argv[1]
+    filename = sys.argv[2]
+
+    if command not in ["tokenize", "parse", "evaluate", "run"]:
+        print(f"Unknown command: {command}", file=sys.stderr)
+        exit(1)
+
+    with open(filename) as file:
+        file_contents = file.read()
+
+    # You can use print statements as follows for debugging, they'll be visible when running tests.
+    print("Logs from your program will appear here!", file=sys.stderr)
+
+    # Scan tokens
+    scanner = Scanner(file_contents)
+    tokens = scanner.scan_tokens()
+
+    # Handle different commands
+    if command == "tokenize":
+        # Print tokens in the required format
+        for token in tokens:
+            print(token)
+        # Only exit with error code after printing all valid tokens
+        if scanner.had_error:
+            exit(65)
+    elif command == "parse":
+        # Parse a single expression and print its AST representation
+        parser = Parser(tokens)
+        try:
+            expression = parser.expression()
+            # Don't check for EOF here - allow the expression to take up the entire input
+            # parser.consume(TokenType.EOF, "Expect end of expression.")
+            if expression:
+                printer = AstPrinter()
+                print(printer.print(expression))
+            else:
+                print("Error: Failed to parse expression.", file=sys.stderr)
+                exit(65)
+        except Exception as error:
+            print(f"Parse error: {error}", file=sys.stderr)
+            exit(65)
+    elif command == "evaluate":
+        try:
+            # Parse the expression
+            parser = Parser(tokens)
+            expression = parser.expression()
+            
+            # Skip the EOF check that's causing the parse error
+            # parser.consume(TokenType.EOF, "Expect end of expression.")
+            
+            # Evaluate the expression
+            interpreter = Interpreter()
+            value = interpreter.evaluate(expression)
+            print(interpreter.stringify(value))
+        except LoxRuntimeError as error:
+            # This will catch our type mismatch for "bar" < true
+            print(f"{error.message}", file=sys.stderr)
+            exit(70)  # Return runtime error code
+        except Exception as error:
+            # Only catch parse errors if absolutely necessary
+            print(f"Parse error: {error}", file=sys.stderr)
+            exit(65)  # Syntax error
+    elif command == "run":
+        # Parse and execute a program
+        parser = Parser(tokens)
+        statements = parser.parse()
+        if parser.had_error:
+            exit(65)  # Syntax error
+        
+        # Create the interpreter
+        interpreter = Interpreter()
+        
+        # Run the resolver
+        resolver = Resolver(interpreter)
+        try:
+            resolver.resolve(statements)
+        except Exception as error:
+            print(f"Resolution error: {error}", file=sys.stderr)
+            exit(65)
+        
+        # Run the interpreter
+        interpreter.interpret(statements)
+        if interpreter.had_runtime_error:
+            exit(70)  # Runtime error
+
+
+if __name__ == "__main__":
+    main()
