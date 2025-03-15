@@ -502,15 +502,66 @@ class Scanner:
         """Check if we've reached the end of the source."""
         return self.current >= len(self.source)
 
+# Interpreter for evaluating expressions
+class Interpreter:
+    """Evaluates expressions and returns their values."""
+    
+    def interpret(self, expr):
+        """Interpret an expression and return its value."""
+        try:
+            value = self.evaluate(expr)
+            return self.stringify(value)
+        except Exception as error:
+            # Handle runtime errors here
+            print(f"Runtime Error: {error}", file=sys.stderr)
+            return None
+    
+    def evaluate(self, expr):
+        """Evaluate an expression and return its value."""
+        return expr.accept(self)
+    
+    def visit_literal_expr(self, expr):
+        """Evaluate a literal expression."""
+        return expr.value
+    
+    def visit_grouping_expr(self, expr):
+        """Evaluate a grouping expression."""
+        return self.evaluate(expr.expression)
+    
+    def visit_unary_expr(self, expr):
+        """Evaluate a unary expression."""
+        # Placeholder for future implementation
+        raise NotImplementedError("Unary expressions not yet implemented")
+    
+    def visit_binary_expr(self, expr):
+        """Evaluate a binary expression."""
+        # Placeholder for future implementation
+        raise NotImplementedError("Binary expressions not yet implemented")
+    
+    def stringify(self, value):
+        """Convert a value to its string representation."""
+        if value is None:
+            return "nil"
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, float):
+            # Remove trailing .0 for integers
+            text = str(value)
+            if text.endswith(".0"):
+                text = text[:-2]
+            return text
+        # For strings and other types
+        return str(value)
+
 def main():
     if len(sys.argv) < 3:
-        print("Usage: ./your_program.sh [tokenize|parse] <filename>", file=sys.stderr)
+        print("Usage: ./your_program.sh [tokenize|parse|evaluate] <filename>", file=sys.stderr)
         exit(1)
 
     command = sys.argv[1]
     filename = sys.argv[2]
 
-    if command not in ["tokenize", "parse"]:
+    if command not in ["tokenize", "parse", "evaluate"]:
         print(f"Unknown command: {command}", file=sys.stderr)
         exit(1)
 
@@ -539,13 +590,27 @@ def main():
         else:
             print("Error: Failed to parse expression.", file=sys.stderr)
             exit(65)
+    elif command == "evaluate":
+        # Parse and evaluate the expression
+        parser = Parser(tokens)
+        expression = parser.parse()
+        if expression:
+            interpreter = Interpreter()
+            result = interpreter.interpret(expression)
+            if result is not None:
+                print(result)
+            else:
+                exit(70)  # Runtime error
+        else:
+            print("Error: Failed to parse expression.", file=sys.stderr)
+            exit(65)
     
     # Exit with code 65 if there were lexical errors
     if scanner.had_error:
         exit(65)
     
     # Exit with code 65 if there were parsing errors
-    if command == "parse" and parser.had_error:
+    if (command == "parse" or command == "evaluate") and parser.had_error:
         exit(65)
 
 
