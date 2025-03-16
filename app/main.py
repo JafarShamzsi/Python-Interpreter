@@ -1444,11 +1444,11 @@ class LoxMethod(LoxCallable):
         self.method = method      # The LoxFunction for this method
     
     def call(self, interpreter, arguments):
-        # Create environment with 'this' bound to instance
+        # Create environment with proper binding for 'this'
         environment = Environment(self.method.closure)
         environment.define("this", self.instance)
         
-        # Execute method body in this environment
+        # Execute method body in this environment 
         return self.method.call(interpreter, arguments, environment)
     
     def arity(self):
@@ -1565,12 +1565,11 @@ class LoxClass(LoxCallable):
         # Look for an initializer
         initializer = self.find_method("init")
         if initializer is not None:
-            # Call the initializer with the provided arguments
-            # Bind 'this' to the instance
+            # Create a method bound to the instance and call it
             method = LoxMethod(instance, initializer)
             method.call(interpreter, arguments)
         
-        # Always return the instance, regardless of what init returns
+        # Always return the instance
         return instance
     
     def arity(self):
