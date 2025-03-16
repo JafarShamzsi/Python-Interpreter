@@ -215,13 +215,13 @@ class Block(Stmt):
         self.statements = statements  # List of statements
     
     def accept(self, visitor):
-        return visitor.visit_block_stmt(self)  # Call on visitor, not self
+        return visitor.visit_block_stmt(self)
 
 # Add If statement class
 class If(Stmt):
     """If statement with condition and branches."""
-    def __init__(self, condition, then_branch, else_branch=None):
-        self.condition = condition  # Expression to evaluate
+    def __init__(self, condition, then_branch, else_branch):
+        self.condition = condition      # Expression to evaluate
         self.then_branch = then_branch  # Statement to execute if condition is true
         self.else_branch = else_branch  # Optional statement to execute if condition is false
     
@@ -616,7 +616,6 @@ class Parser:
         
         return Call(callee, paren, arguments)
 
-    # Update the primary method in Parser to recognize 'this'
     def primary(self):
         """Parse a primary expression."""
         if self.match(TokenType.FALSE):
@@ -626,11 +625,12 @@ class Parser:
         if self.match(TokenType.NIL):
             return Literal(None)
         
-        if self.match(TokenType.THIS):
-            return This(self.previous())
-        
         if self.match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self.previous().literal)
+        
+        # Add handling for the 'this' keyword
+        if self.match(TokenType.THIS):
+            return This(self.previous())
         
         # Add this to handle variable references
         if self.match(TokenType.IDENTIFIER):
@@ -1067,11 +1067,7 @@ class Interpreter:
     
     def lookup_variable(self, name, expr):
         """Look up a variable using static resolution information if available."""
-        # Special handling for 'this' keyword
-        if name.lexeme == "this" and expr in self.locals:
-            distance = self.locals[expr]
-            return self.environment.get_at(distance, "this")
-        elif expr in self.locals:
+        if expr in self.locals:
             distance = self.locals[expr]
             return self.environment.get_at(distance, name.lexeme)
         else:
@@ -1401,7 +1397,6 @@ class Interpreter:
         value = self.evaluate(expr.value)
         return object.set(expr.name, value)
 
-    # Add this method to the Interpreter
     def visit_this_expr(self, expr):
         """Evaluate a 'this' expression."""
         return self.lookup_variable(expr.keyword, expr)
@@ -1414,9 +1409,10 @@ class LoxFunction(LoxCallable):
         self.declaration = declaration  # Function declaration AST node
         self.closure = closure          # Environment where function was defined
     
-    def call(self, interpreter, arguments):
+    def call(self, interpreter, arguments, environment=None):
         # Create a new environment for the function execution
-        environment = Environment(self.closure)
+        if environment is None:
+            environment = Environment(self.closure)
         
         # Bind parameters to arguments
         for i, parameter in enumerate(self.declaration.params):
@@ -1448,25 +1444,12 @@ class LoxMethod(LoxCallable):
         self.method = method      # The LoxFunction for this method
     
     def call(self, interpreter, arguments):
-        """Call the method with the given arguments."""
-        # Create a new environment with the method's closure
+        # Create environment with 'this' bound to instance
         environment = Environment(self.method.closure)
-        
-        # Bind 'this' to the instance - this must happen first!
         environment.define("this", self.instance)
         
-        # Bind parameters to arguments
-        for i, parameter in enumerate(self.method.declaration.params):
-            environment.define(parameter.lexeme, arguments[i])
-        
-        try:
-            # Execute the method body in this environment
-            interpreter.execute_block(self.method.declaration.body, environment)
-        except ReturnException as return_value:
-            return return_value.value
-        
-        # Methods without explicit returns return nil
-        return None
+        # Execute method body in this environment
+        return self.method.call(interpreter, arguments, environment)
     
     def arity(self):
         return self.method.arity()
@@ -1518,15 +1501,7 @@ class Environment:
 
     def get_at(self, distance, name):
         """Get the value of a variable at a specific distance."""
-        # Get the environment at the right distance
-        env = self.ancestor(distance)
-        # Return the variable value
-        if name in env.values:
-            return env.values[name]
-        else:
-            # This will help with debugging
-            available_vars = ", ".join(env.values.keys())
-            raise Exception(f"Variable '{name}' not found at distance {distance}. Available variables: {available_vars}")
+        return self.ancestor(distance).values.get(name)
 
     def assign_at(self, distance, name, value):
         """Assign a value to a variable at a specific distance."""
@@ -1611,7 +1586,6 @@ class LoxInstance:
         # Look for a method
         method = self.klass.find_method(name.lexeme)
         if method is not None:
-            # Create a bound method - this is what was missing
             return LoxMethod(self, method)
         
         # Property not found
@@ -1629,7 +1603,7 @@ class LoxInstance:
 class FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
-    METHOD = 2  # Add method type
+    METHOD = 2  # Add METHOD type to track when we're in a class method
 
 # Update the Resolver class to add error tracking
 class Resolver:
@@ -1639,6 +1613,7 @@ class Resolver:
         self.interpreter = interpreter
         self.scopes = []  # Stack of scopes
         self.current_function = FunctionType.NONE
+        self.current_class = False  # Track if we're inside a class declaration
         self.had_error = False  # Add this to track errors
     
     def resolve(self, statements_or_expr):
@@ -1694,6 +1669,10 @@ class Resolver:
         self.current_function = function_type
         
         self.begin_scope()
+        
+        # If it's a method, define 'this' in the scope
+        if function_type == FunctionType.METHOD:
+            self.scopes[-1]["this"] = True
         
         # Declare and define each parameter
         for param in function.params:
@@ -1803,14 +1782,18 @@ class Resolver:
     # Add to the Resolver class
     def visit_class_stmt(self, stmt):
         """Resolve a class declaration."""
+        was_in_class = self.current_class
+        self.current_class = True
+        
         self.declare(stmt.name)
         self.define(stmt.name)
         
         # Resolve method bodies with METHOD type
         for method in stmt.methods:
-            function_type = FunctionType.METHOD
-            self.resolve_function(method, function_type)
+            self.resolve_function(method, FunctionType.METHOD)
         
+        # Restore previous class context
+        self.current_class = was_in_class
         return None
 
     # Add to the Resolver class
@@ -1825,13 +1808,14 @@ class Resolver:
         self.resolve(expr.object)
         # No need to resolve the property name - it's looked up at runtime
 
-    # Add this method to the Resolver class
+    # Add this method to handle 'this' expressions
     def visit_this_expr(self, expr):
         """Resolve a 'this' expression."""
-        if self.current_function != FunctionType.METHOD:
-            self.error(expr.keyword, "Can't use 'this' outside of a method.")
-        else:
-            self.resolve_local(expr, expr.keyword)
+        if not self.current_class:
+            self.error(expr.keyword, "Can't use 'this' outside of a class method.")
+            return
+        
+        self.resolve_local(expr, expr.keyword)
 
 # Update main function to support the 'run' command
 def main():
