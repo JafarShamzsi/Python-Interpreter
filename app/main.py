@@ -215,7 +215,7 @@ class Block(Stmt):
         self.statements = statements  # List of statements
     
     def accept(self, visitor):
-        return visitor.visit_block_stmt(self)  # Changed from self.visit_block_stmt(self)
+        return visitor.visit_block_stmt(self)  # Call method on visitor
 
 # Add If statement class
 class If(Stmt):
