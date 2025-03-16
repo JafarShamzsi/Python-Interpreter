@@ -1448,8 +1448,13 @@ class LoxMethod(LoxCallable):
         environment = Environment(self.method.closure)
         environment.define("this", self.instance)
         
-        # Execute method body in this environment
-        return self.method.call(interpreter, arguments, environment)
+        result = self.method.call(interpreter, arguments, environment)
+        
+        # If this is an init method, always return the instance
+        if self.method.declaration.name.lexeme == "init":
+            return self.instance
+            
+        return result
     
     def arity(self):
         return self.method.arity()
@@ -1544,7 +1549,7 @@ class NativeFunction(LoxCallable):
     def __str__(self):
         return "<native fn>"
 
-# Add after NativeFunction class (around line 1400)
+# Update the LoxClass.call method to handle constructors
 class LoxClass(LoxCallable):
     """Runtime representation of a Lox class."""
     
@@ -1561,10 +1566,24 @@ class LoxClass(LoxCallable):
     def call(self, interpreter, arguments):
         # Create a new instance of this class
         instance = LoxInstance(self)
+        
+        # Look for an initializer
+        initializer = self.find_method("init")
+        if initializer is not None:
+            # Call the initializer with the provided arguments
+            # Bind 'this' to the instance
+            method = LoxMethod(instance, initializer)
+            method.call(interpreter, arguments)
+        
+        # Always return the instance, regardless of what init returns
         return instance
     
     def arity(self):
-        # Class constructors don't take arguments yet
+        # Check if there's an initializer and use its arity
+        initializer = self.find_method("init")
+        if initializer is not None:
+            return initializer.arity()
+        # No initializer means no parameters
         return 0
     
     def __str__(self):
