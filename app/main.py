@@ -1449,6 +1449,7 @@ class LoxMethod(LoxCallable):
         environment = Environment(self.method.closure)
         
         # Bind 'this' to the instance
+        # Use "this" as the key since Environment.define expects a string key
         environment.define("this", self.instance)
         
         # Bind parameters to arguments
