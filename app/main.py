@@ -1067,7 +1067,11 @@ class Interpreter:
     
     def lookup_variable(self, name, expr):
         """Look up a variable using static resolution information if available."""
-        if expr in self.locals:
+        # Special handling for 'this' keyword
+        if name.lexeme == "this" and expr in self.locals:
+            distance = self.locals[expr]
+            return self.environment.get_at(distance, "this")
+        elif expr in self.locals:
             distance = self.locals[expr]
             return self.environment.get_at(distance, name.lexeme)
         else:
@@ -1448,8 +1452,7 @@ class LoxMethod(LoxCallable):
         # Create a new environment with the method's closure
         environment = Environment(self.method.closure)
         
-        # Bind 'this' to the instance
-        # Use "this" as the key since Environment.define expects a string key
+        # Bind 'this' to the instance - ensure this is bound first
         environment.define("this", self.instance)
         
         # Bind parameters to arguments
@@ -1457,7 +1460,7 @@ class LoxMethod(LoxCallable):
             environment.define(parameter.lexeme, arguments[i])
         
         try:
-            # Execute the method body
+            # Execute the method body in this environment
             interpreter.execute_block(self.method.declaration.body, environment)
         except ReturnException as return_value:
             return return_value.value
@@ -1515,7 +1518,15 @@ class Environment:
 
     def get_at(self, distance, name):
         """Get the value of a variable at a specific distance."""
-        return self.ancestor(distance).values.get(name)
+        # Get the environment at the right distance
+        env = self.ancestor(distance)
+        # Return the variable value
+        if name in env.values:
+            return env.values[name]
+        else:
+            # This will help with debugging
+            available_vars = ", ".join(env.values.keys())
+            raise Exception(f"Variable '{name}' not found at distance {distance}. Available variables: {available_vars}")
 
     def assign_at(self, distance, name, value):
         """Assign a value to a variable at a specific distance."""
