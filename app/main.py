@@ -1623,6 +1623,7 @@ class FunctionType(Enum):
     NONE = 0
     FUNCTION = 1
     METHOD = 2  # Add METHOD type to track when we're in a class method
+    INITIALIZER = 3  # Add this for init methods
 
 # Update the Resolver class to add error tracking
 class Resolver:
@@ -1780,6 +1781,9 @@ class Resolver:
         if self.current_function == FunctionType.NONE:
             self.error(stmt.keyword, "Can't return from top-level code.")
         
+        if stmt.value and self.current_function == FunctionType.INITIALIZER:
+            self.error(stmt.keyword, "Can't return a value from an initializer.")
+        
         if stmt.value:
             self.resolve(stmt.value)
     
@@ -1807,9 +1811,15 @@ class Resolver:
         self.declare(stmt.name)
         self.define(stmt.name)
         
-        # Resolve method bodies with METHOD type
+        # Resolve method bodies with appropriate type
         for method in stmt.methods:
-            self.resolve_function(method, FunctionType.METHOD)
+            function_type = FunctionType.METHOD
+            
+            # If method is named "init", it's an initializer
+            if method.name.lexeme == "init":
+                function_type = FunctionType.INITIALIZER
+                
+            self.resolve_function(method, function_type)
         
         # Restore previous class context
         self.current_class = was_in_class
