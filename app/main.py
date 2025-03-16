@@ -215,7 +215,7 @@ class Block(Stmt):
         self.statements = statements  # List of statements
     
     def accept(self, visitor):
-        return visitor.visit_block_stmt(self)  # Changed from self.visit_block_stmt(self)
+        return self.visit_block_stmt(self)  # Changed from self.visit_block_stmt(self)
 
 # Add If statement class
 class If(Stmt):
@@ -1452,7 +1452,7 @@ class LoxMethod(LoxCallable):
         # Create a new environment with the method's closure
         environment = Environment(self.method.closure)
         
-        # Bind 'this' to the instance - ensure this is bound first
+        # Bind 'this' to the instance - this must happen first!
         environment.define("this", self.instance)
         
         # Bind parameters to arguments
@@ -1611,6 +1611,7 @@ class LoxInstance:
         # Look for a method
         method = self.klass.find_method(name.lexeme)
         if method is not None:
+            # Create a bound method - this is what was missing
             return LoxMethod(self, method)
         
         # Property not found
