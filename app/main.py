@@ -1684,8 +1684,8 @@ class Resolver:
         
         self.begin_scope()
         
-        # If it's a method, define 'this' in the scope
-        if function_type == FunctionType.METHOD:
+        # If it's a method OR initializer, define 'this' in the scope
+        if function_type == FunctionType.METHOD or function_type == FunctionType.INITIALIZER:
             self.scopes[-1]["this"] = True
         
         # Declare and define each parameter
