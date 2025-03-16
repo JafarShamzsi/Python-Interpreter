@@ -1448,13 +1448,8 @@ class LoxMethod(LoxCallable):
         environment = Environment(self.method.closure)
         environment.define("this", self.instance)
         
-        result = self.method.call(interpreter, arguments, environment)
-        
-        # If this is an init method, always return the instance
-        if self.method.declaration.name.lexeme == "init":
-            return self.instance
-            
-        return result
+        # Execute method body in this environment
+        return self.method.call(interpreter, arguments, environment)
     
     def arity(self):
         return self.method.arity()
